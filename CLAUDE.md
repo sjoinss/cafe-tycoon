@@ -44,3 +44,11 @@
 - 세 파일 중 하나만 고쳐도 되는 경우가 많습니다 — 마크업/구조 변경은 `index.html`, 색상/레이아웃은 `style.css`, 게임 동작은 `script.js`.
 - `script.js`는 파일 하나에 전역 상태와 함수가 모두 있는 구조입니다(모듈 시스템 없음). 새 기능을 추가할 때도 기존 섹션 주석 스타일(`// ============ 이름 ============`)을 따라 위치를 명확히 구분해주세요.
 - 브라우저에서 직접 확인할 때 `file://`로 열면 일부 기능(특히 IndexedDB/모듈 관련)이 제한될 수 있으니 간단한 정적 서버로 띄워서 테스트하는 것을 권장합니다.
+
+## Git / 커밋 계정 주의사항
+
+- **`sonjiyo` 계정으로는 절대 커밋·푸시하지 않는다.** 이 저장소의 원격(origin)은 `sjoinss/cafe-tycoon.git`이며, 커밋/푸시 전에는 항상 다음을 확인한다:
+  - `git config --local user.name` / `user.email` (현재 `Claude` / `claude-code@anthropic.com`로 설정되어 있음)
+  - `gh auth status` — 활성 계정이 `sjoinss`인지 확인 (sonjiyo 계정이 로그인되어 있거나 활성화되어 있으면 즉시 중단하고 사용자에게 알린다)
+  - Windows 자격 증명 관리자(`cmdkey /list`)에 sonjiyo 관련 GitHub 자격 증명이 새로 추가되었는지도 확인
+- 위 확인 없이 `git push`를 실행하지 않는다.

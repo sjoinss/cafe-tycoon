@@ -959,6 +959,24 @@ function aiCheckCookingDone(){
   }
 }
 
+// ============ 모바일 카메라(확대/추적) ============
+// 세로로 좁은 화면에서는 800x520 맵 전체가 다 보이면 캐릭터/설비가 너무 작아서 터치하기
+// 힘들다는 피드백이 있어, 좁고 세로로 긴 화면일 때만 카메라를 확대해 캐릭터 주변만 따라가며
+// 보여준다. 캔버스의 CSS 표시 크기/해상도는 그대로 두고 "그리는 내용"만 확대·이동시키는
+// 방식이라, 캔버스 위에 얹힌 DOM 오버레이(대사창/설정창 등)의 배치엔 전혀 영향이 없다.
+const camera = { x:0, y:0, zoom:1 };
+function computeCameraZoom(){
+  return (window.innerWidth < 700 && window.innerWidth < window.innerHeight) ? 1.7 : 1;
+}
+function updateCamera(){
+  camera.zoom = computeCameraZoom();
+  const viewW = 800/camera.zoom, viewH = 520/camera.zoom;
+  const camX = (player.x+player.w/2) - viewW/2;
+  const camY = (player.y+player.h/2) - viewH/2;
+  camera.x = Math.max(0, Math.min(800-viewW, camX));
+  camera.y = Math.max(0, Math.min(520-viewH, camY));
+}
+
 function updatePlayer(){
   let dx=0,dy=0;
   if (keys['arrowup']||keys['w']) { dy=-1; player.dir='up'; }
@@ -973,9 +991,25 @@ function updatePlayer(){
     if (Math.hypot(tdx,tdy) < 4) {
       touchMoveTarget = null;
       if (pendingAutoInteract) { pendingAutoInteract = false; tryInteract(); }
+    } else {
+      // 우선 축이 벽/설비에 막혀 있으면 다른 축으로 대신 이동해본다 - 아니면 막힌 방향으로
+      // 걷기 애니메이션만 계속 재생되고 실제로는 전혀 움직이지 못하는 "제자리걸음" 버그가 생긴다.
+      const testSpd = player.speed;
+      const footTy = Math.floor((player.y+player.h-4)/TILE);
+      const footTx = Math.floor((player.x+player.w/2)/TILE);
+      const canMoveX = tdx!==0 && !tileSolid(Math.floor((player.x+Math.sign(tdx)*testSpd+player.w/2)/TILE), footTy);
+      const canMoveY = tdy!==0 && !tileSolid(footTx, Math.floor((player.y+Math.sign(tdy)*testSpd+player.h-4)/TILE));
+      const preferX = Math.abs(tdx) >= Math.abs(tdy);
+      if (preferX && canMoveX) { dx = Math.sign(tdx); player.dir = dx>0?'right':'left'; }
+      else if (!preferX && canMoveY) { dy = Math.sign(tdy); player.dir = dy>0?'down':'up'; }
+      else if (canMoveX) { dx = Math.sign(tdx); player.dir = dx>0?'right':'left'; }
+      else if (canMoveY) { dy = Math.sign(tdy); player.dir = dy>0?'down':'up'; }
+      else {
+        // 양쪽 축 모두 막혀서 더 다가갈 수 없는 경우(도달 불가능한 지점을 탭한 경우) 포기한다
+        touchMoveTarget = null;
+        pendingAutoInteract = false;
+      }
     }
-    else if (Math.abs(tdx) >= Math.abs(tdy)) { dx = tdx>0?1:-1; player.dir = dx>0?'right':'left'; }
-    else { dy = tdy>0?1:-1; player.dir = dy>0?'down':'up'; }
   }
 
   player.moving = (dx!==0||dy!==0) && !miniGameActive && !menuOpen && !shopOpen && !dialogueActive;
@@ -1121,7 +1155,10 @@ function canvasPointFromEvent(e){
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
-  return { x: (e.clientX-rect.left)*scaleX, y: (e.clientY-rect.top)*scaleY };
+  const rawX = (e.clientX-rect.left)*scaleX;
+  const rawY = (e.clientY-rect.top)*scaleY;
+  // 카메라가 확대/이동되어 있으면(모바일) 화면 좌표를 실제 맵(월드) 좌표로 환산해야 한다
+  return { x: rawX/camera.zoom + camera.x, y: rawY/camera.zoom + camera.y };
 }
 
 // 탭 좌표(px,py)가 설비 또는 테이블의 대략적인 그림 영역 위에 있는지 확인한다.
@@ -1163,9 +1200,6 @@ function handleSequenceDirection(dir){
   if (dir === expected) miniGame.progress++;
   else miniGame.mistakeFlash = 12;
 }
-
-const touchActionBtn = document.getElementById('touchActionBtn');
-touchActionBtn.addEventListener('pointerdown', e => { e.preventDefault(); tryInteract(); });
 
 const touchDirPad = document.getElementById('touchDirPad');
 touchDirPad.querySelectorAll('.dirBtn').forEach(btn => {
@@ -1855,12 +1889,17 @@ function drawTable(t){
   }
 
   if (t.needsCleanup) {
-    // 지저분한 그릇 표시 + 반짝이는 안내 아이콘
+    // 지저분한 그릇 표시 + 청소 안내 아이콘. 예전엔 테이블 맨 위(topY)에 작게 그려서 모바일처럼
+    // 화면이 작게 보일 때 잘 안 띈다는 피드백이 있어, 테이블 바로 위로 내리고 흰 배경 원 + 큰
+    // 글자로 눈에 확 띄게 했다.
     ctx.fillStyle='#8a8a8a';
     ctx.beginPath(); ctx.ellipse(cx-8, footY-18, 6, 4, 0, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(cx+8, footY-16, 5, 4, 0, 0, Math.PI*2); ctx.fill();
-    ctx.font='16px serif'; ctx.textAlign='center';
-    ctx.fillText('🧹', cx, topY-6);
+    const iconY = footY - 32;
+    ctx.fillStyle='rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(cx, iconY-7, 16, 0, Math.PI*2); ctx.fill();
+    ctx.font='26px serif'; ctx.textAlign='center';
+    ctx.fillText('🧹', cx, iconY);
   }
 }
 
@@ -2391,16 +2430,29 @@ async function deserializeDecorCustom(data){
   decorCustom.table.img = await dataUrlToImg(data.table);
 }
 
-function collectSaveData(){
+// 객체를 JSON 파일로 다운로드한다(저장 슬롯 내보내기/커스텀 내보내기가 공용으로 쓴다)
+function downloadJson(obj, filename){
+  const blob = new Blob([JSON.stringify(obj)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+// 사용자가 고른 파일을 읽어 JSON으로 파싱한다
+function readJsonFile(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => { try { resolve(JSON.parse(reader.result)); } catch(e){ reject(e); } };
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// 캐릭터/손님/메뉴/인테리어 커스텀만 따로 묶어서 직렬화한다. 저장 슬롯(collectSaveData)과
+// 슬롯과 무관한 전역 커스텀 저장(saveGlobalCustom), 커스텀 내보내기 파일이 모두 이 형태를 공유한다.
+function collectCustomizationBundle(){
   return {
-    gameMode,
-    money, reputation, totalServed, level, day,
-    cumulativeEarnings, freeMode, endingShown, currentExpansionStage,
-    stock: {...stock},
-    everBought: {...everBought},
-    stationsOwned: Object.fromEntries(Object.keys(STATIONS_DEF).map(k=>[k, STATIONS_DEF[k].owned])),
-    staffHired: { cook: staff.cook.hired, server: staff.server.hired },
-    tutorialDone: tutorialDone,
     charCustom: {
       player: serializeCharCustom(characterCustom.player),
       cook: serializeCharCustom(characterCustom.cook),
@@ -2415,6 +2467,45 @@ function collectSaveData(){
     },
     menuCustom: serializeMenuCustom(),
     decorCustom: serializeDecorCustom(),
+  };
+}
+
+// bundle(collectCustomizationBundle()과 같은 모양)을 현재 상태에 적용한다.
+async function applyCustomizationBundle(bundle){
+  if (!bundle) return;
+  if (bundle.charCustom) {
+    characterCustom.player = await deserializeCharCustom(bundle.charCustom.player);
+    characterCustom.cook = await deserializeCharCustom(bundle.charCustom.cook);
+    characterCustom.server = await deserializeCharCustom(bundle.charCustom.server);
+  }
+  if (bundle.customerCustom) {
+    customerCustom.mode = bundle.customerCustom.mode || 'none';
+    customerCustom.unified = await deserializeCharCustom(bundle.customerCustom.unified);
+    if (Array.isArray(bundle.customerCustom.perType)) {
+      customerCustom.perType = await Promise.all(bundle.customerCustom.perType.map(deserializeCharCustom));
+    }
+    if (Array.isArray(bundle.customerCustom.typeNames)) {
+      bundle.customerCustom.typeNames.forEach((name, i) => { if (customerTypes[i] && name) customerTypes[i].name = name; });
+    }
+    if (Array.isArray(bundle.customerCustom.typePrefs)) {
+      bundle.customerCustom.typePrefs.forEach((prefs, i) => { if (customerTypes[i] && Array.isArray(prefs)) customerTypes[i].preferredStations = prefs; });
+    }
+  }
+  if (bundle.menuCustom) await deserializeMenuCustom(bundle.menuCustom);
+  if (bundle.decorCustom) await deserializeDecorCustom(bundle.decorCustom);
+}
+
+function collectSaveData(){
+  return {
+    gameMode,
+    money, reputation, totalServed, level, day,
+    cumulativeEarnings, freeMode, endingShown, currentExpansionStage,
+    stock: {...stock},
+    everBought: {...everBought},
+    stationsOwned: Object.fromEntries(Object.keys(STATIONS_DEF).map(k=>[k, STATIONS_DEF[k].owned])),
+    staffHired: { cook: staff.cook.hired, server: staff.server.hired },
+    tutorialDone: tutorialDone,
+    ...collectCustomizationBundle(),
   };
 }
 
@@ -2482,30 +2573,7 @@ async function applySaveData(data){
   player.inventory = [null, null];
   player.activeSlot = 0;
 
-  if (data.charCustom) {
-    characterCustom.player = await deserializeCharCustom(data.charCustom.player);
-    characterCustom.cook = await deserializeCharCustom(data.charCustom.cook);
-    characterCustom.server = await deserializeCharCustom(data.charCustom.server);
-  }
-  if (data.customerCustom) {
-    customerCustom.mode = data.customerCustom.mode || 'none';
-    customerCustom.unified = await deserializeCharCustom(data.customerCustom.unified);
-    if (Array.isArray(data.customerCustom.perType)) {
-      customerCustom.perType = await Promise.all(data.customerCustom.perType.map(deserializeCharCustom));
-    }
-    if (Array.isArray(data.customerCustom.typeNames)) {
-      data.customerCustom.typeNames.forEach((name, i) => { if (customerTypes[i] && name) customerTypes[i].name = name; });
-    }
-    if (Array.isArray(data.customerCustom.typePrefs)) {
-      data.customerCustom.typePrefs.forEach((prefs, i) => { if (customerTypes[i] && Array.isArray(prefs)) customerTypes[i].preferredStations = prefs; });
-    }
-  }
-  if (data.menuCustom) {
-    await deserializeMenuCustom(data.menuCustom);
-  }
-  if (data.decorCustom) {
-    await deserializeDecorCustom(data.decorCustom);
-  }
+  await applyCustomizationBundle(data);
 
   // 맵/스테이션 타일을 불러온 상태에 맞게 재적용
   rebuildMapOpenArea();
@@ -2513,6 +2581,24 @@ async function applySaveData(data){
 
 async function deleteSlot(slot){
   try { await dbDelete(slot); return true; } catch(e) { return false; }
+}
+
+// ============ 전역 커스텀 저장 (저장 슬롯과 무관하게 항상 유지) ============
+// 캐릭터/손님/메뉴/인테리어 커스텀은 저장 슬롯에도 스냅샷으로 같이 저장되지만, 슬롯을 하나도
+// 저장하지 않은 채로 새로고침하면 사라지는 문제가 있었다. 슬롯과 별개로 이 키에도 항상 최신
+// 상태를 저장해두면, "저장은 안 해도 커스텀은 남아있으면 좋겠다"는 요구와 내보내기/불러오기가
+// 저장 진행도와 독립적으로 동작할 수 있다. IndexedDB의 같은 저장소(slot 값만 문자열로 구분)를 쓴다.
+const GLOBAL_CUSTOM_SLOT = 'globalCustom';
+async function saveGlobalCustom(){
+  try {
+    await dbPut({ slot: GLOBAL_CUSTOM_SLOT, ...collectCustomizationBundle() });
+  } catch(e) { console.warn('전역 커스텀 저장 실패:', e); }
+}
+async function loadGlobalCustom(){
+  try {
+    const record = await dbGet(GLOBAL_CUSTOM_SLOT);
+    if (record) await applyCustomizationBundle(record);
+  } catch(e) { console.warn('전역 커스텀 불러오기 실패:', e); }
 }
 
 
@@ -2538,6 +2624,7 @@ function openSettings(){
 function closeSettings(){
   settingsOpen = false;
   settingsOverlay.classList.remove('open');
+  saveGlobalCustom(); // 설정창에서 바꾼 커스텀을 저장 슬롯과 무관하게 항상 남겨둔다
 }
 settingsCloseBtn.addEventListener('click', closeSettings);
 shopOpenSettingsBtn.addEventListener('click', () => { closeShop(); openSettings(); });
@@ -3000,6 +3087,49 @@ const settingsChangeModeBtn = document.getElementById('settingsChangeMode');
 const saveSlotListEl = document.getElementById('saveSlotList');
 const settingsResetCharBtn = document.getElementById('settingsResetChar');
 
+// ============ 커스텀 내보내기/가져오기 (저장 진행도와 무관하게 이미지/테마만 파일로 이동) ============
+const customExportBtn = document.getElementById('customExportBtn');
+const customImportBtn = document.getElementById('customImportBtn');
+const customImportFile = document.getElementById('customImportFile');
+
+customExportBtn.addEventListener('click', ()=>{
+  const bundle = {
+    kind: 'cafeTycoonCustomExport',
+    theme: currentTheme,
+    titleName: gameTitleName,
+    titleIcon: { mode: gameTitleIcon.mode, emoji: gameTitleIcon.emoji, imgDataUrl: gameTitleIcon.img ? gameTitleIcon.img.src : null },
+    ...collectCustomizationBundle(),
+  };
+  downloadJson(bundle, 'cafe-tycoon-custom.json');
+  setMsg('커스텀을 파일로 내보냈어요.');
+});
+
+customImportBtn.addEventListener('click', ()=> customImportFile.click());
+customImportFile.addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  customImportFile.value = '';
+  if (!file) return;
+  try {
+    const data = await readJsonFile(file);
+    if (data.theme) applyTheme(data.theme);
+    if (data.titleName) gameTitleName = data.titleName;
+    if (data.titleIcon) {
+      gameTitleIcon.mode = data.titleIcon.mode || 'emoji';
+      gameTitleIcon.emoji = data.titleIcon.emoji || '☕';
+      gameTitleIcon.img = data.titleIcon.imgDataUrl ? await dataUrlToImg(data.titleIcon.imgDataUrl) : null;
+    }
+    applyTitleCustom();
+    await applyCustomizationBundle(data);
+    saveGlobalSettings();
+    await saveGlobalCustom(); // 가져온 커스텀을 슬롯과 무관하게 바로 영구 저장해둔다
+    renderSettingsBody();
+    renderGamePanel();
+    setMsg('커스텀을 가져왔어요.');
+  } catch(err) {
+    setMsg('커스텀 파일을 읽는 데 실패했어요.');
+  }
+});
+
 settingsMainTabsEl.querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     settingsMainTabsEl.querySelectorAll('button').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
@@ -3268,6 +3398,7 @@ async function renderSaveSlotListInline(){
       ? `<div class="slotTitle">슬롯 ${i} · ${modeLabel} · Lv.${rec.level}</div><div>${rec.gameMode==='idle' ? '' : 'Day '+rec.day+' · '}${new Date(rec.savedAt).toLocaleString()}</div>`
       : `<div class="slotTitle">슬롯 ${i}</div><div>비어있음</div>`;
     row.innerHTML = `<div class="slotInfo">${info}</div>`;
+
     const btn = document.createElement('button');
     btn.textContent = rec ? '덮어쓰기' : '저장';
     btn.addEventListener('click', async ()=>{
@@ -3276,6 +3407,42 @@ async function renderSaveSlotListInline(){
       renderSaveSlotListInline();
     });
     row.appendChild(btn);
+
+    if (rec) {
+      const exportBtn = document.createElement('button');
+      exportBtn.textContent = '내보내기';
+      exportBtn.addEventListener('click', ()=>{
+        downloadJson(rec, `cafe-tycoon-save-slot${i}.json`);
+        setMsg(`슬롯 ${i} 저장 파일을 내보냈어요.`);
+      });
+      row.appendChild(exportBtn);
+    }
+
+    const importInput = document.createElement('input');
+    importInput.type = 'file';
+    importInput.accept = 'application/json';
+    importInput.style.display = 'none';
+    importInput.addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      importInput.value = '';
+      if (!file) return;
+      try {
+        const parsed = await readJsonFile(file);
+        if (!parsed || typeof parsed.data !== 'object') { setMsg('올바른 저장 파일이 아니에요.'); return; }
+        await dbPut({ ...parsed, slot: i }); // 어느 슬롯 번호로 내보냈든 지금 고른 슬롯 번호로 덮어쓴다
+        setMsg(`슬롯 ${i}에 파일을 가져왔어요.`);
+        renderSaveSlotListInline();
+      } catch(err) {
+        setMsg('저장 파일을 읽는 데 실패했어요.');
+      }
+    });
+    const importBtn = document.createElement('button');
+    importBtn.textContent = rec ? '파일로 덮어쓰기' : '가져오기';
+    importBtn.className = 'deleteBtn'; // 기존 스타일 중 눈에 덜 띄는 톤을 재사용(주요 동작인 저장/내보내기와는 구분)
+    importBtn.addEventListener('click', ()=> importInput.click());
+    row.appendChild(importBtn);
+    row.appendChild(importInput);
+
     saveSlotListEl.appendChild(row);
   }
 }
@@ -3328,6 +3495,10 @@ function gameLoop(){
   }
 
   ctx.clearRect(0,0,800,520);
+  updateCamera();
+  ctx.save();
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-camera.x, -camera.y);
   drawFloorAndWalls();
   Object.keys(stationSlots).forEach(drawStation);
   // 상점은 지도상 오브젝트 없이 P키로만 접근
@@ -3335,7 +3506,8 @@ function gameLoop(){
   drawStaffCharacters();
   drawPlayer();
   drawUnopenedPreview(); // 미개방 구역 오버레이는 캐릭터/스테이션 위에 그려서 확실히 덮는다
-  drawMiniGameOverlay();
+  ctx.restore();
+  drawMiniGameOverlay(); // 카메라 확대/이동과 무관하게 항상 화면 중앙에 고정되는 UI라 transform 밖에서 그린다
 
   if (dayOpen) refreshHUD(); // 타이머 표시를 매 프레임 갱신
 
@@ -3346,13 +3518,15 @@ refreshHUD();
 // 터치 기기(hover 없음)에서는 키보드 안내 대신 화면 조작법을 안내한다
 const isTouchDevice = window.matchMedia('(hover: none)').matches;
 document.getElementById('msg').textContent = isTouchDevice
-  ? `화면을 터치한 곳으로 이동 · ✋ 행동 버튼으로 상호작용/미니게임 조작 · 아이템칸 터치로 전환 · 🛒 버튼으로 상점 열기`
+  ? `설비·테이블을 터치하면 걸어가서 바로 조작 · 빈 곳 터치는 이동 · 아이템칸 터치로 전환 · 🛒 버튼으로 상점 열기`
   : `방향키/WASD 이동(Shift로 달리기, Lv.${RUN_UNLOCK_LEVEL}부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기`;
 
 // ============ 게임 시작 흐름 ============
 // 자동 불러오기는 하지 않는다. 항상 타이틀 화면에서 "새 게임" 또는 "이어하기"를 선택하게 한다.
-// 다만 테마/가게이름/아이콘 같은 전역 설정은 슬롯과 무관하게 항상 자동으로 불러온다.
+// 다만 테마/가게이름/아이콘 같은 전역 설정과 캐릭터/메뉴/인테리어 커스텀은 슬롯과 무관하게
+// 항상 자동으로 불러온다(저장 슬롯을 하나도 저장하지 않았어도 커스텀은 남아있어야 하므로).
 loadGlobalSettings();
+loadGlobalCustom();
 showTitle();
 
 gameLoop();

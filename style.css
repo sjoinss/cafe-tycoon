@@ -457,6 +457,12 @@
   }
   .saveSlotRow button.deleteBtn { background: var(--badFill); }
 
+  #customBackupRow button {
+    background: var(--goodFill); color:#fff; border:none; padding:8px 16px;
+    border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
+  }
+  #customImportBtn { background: var(--badFill); }
+
   #titleOverlay {
     position:absolute; inset:0; background: var(--bg);
     display:flex; z-index:70; align-items:center; justify-content:center;
@@ -571,20 +577,9 @@
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
 
-  /* ============ 터치 조작 UI (탭-이동은 캔버스에 직접, 나머지는 버튼으로) ============ */
-  /* 이 버튼들은 터치 기기 전용이 아니라, 스페이스/Shift처럼 키보드에 의존하던 조작을
-     마우스·스위치 등 키보드가 없는 입력 방식으로도 쓸 수 있게 하는 접근성 대체 수단이기도 하다. */
-  #touchControls {
-    position:absolute; right:calc(10px + env(safe-area-inset-right, 0px)); bottom:calc(10px + env(safe-area-inset-bottom, 0px));
-    z-index:23; display:flex; flex-direction:column; align-items:flex-end; gap:8px;
-  }
-  #touchControls button {
-    background: rgba(20,17,14,0.72); color: var(--textOnDark); border:2px solid rgba(244,236,224,0.5);
-    border-radius:24px; cursor:pointer; font-family:inherit; font-weight:bold;
-    touch-action: manipulation;
-  }
-  #touchActionBtn { padding:14px 20px; font-size:15px; }
-
+  /* ============ 터치 조작 UI (탭-이동/탭-상호작용은 캔버스에 직접, 방향 입력만 버튼으로) ============ */
+  /* 이 버튼은 터치 기기 전용이 아니라, 물리 방향키에 의존하던 조작을 마우스·스위치 등
+     키보드가 없는 입력 방식으로도 쓸 수 있게 하는 접근성 대체 수단이기도 하다. */
   #touchDirPad {
     position:absolute; left:calc(10px + env(safe-area-inset-left, 0px)); bottom:calc(10px + env(safe-area-inset-bottom, 0px));
     z-index:23; display:none;
@@ -606,9 +601,18 @@
      가로로 넓어서(800:520) 세로 모드에서는 화면 폭에 맞춰 캔버스가 작아질 수밖에 없다 - 아래
      가로모드 규칙이 그 대안이니, 세로로 쓰는 경우 상단에 "가로로 돌리면 더 커져요" 안내를 겸한다. */
   @media (max-width: 1000px) and (orientation: portrait) {
-    body { align-items:flex-start; padding: 12px 0 24px; }
-    /* 좌우 패딩 16px*2=32px는 #wrap의 calc(100vw - 32px)와 값을 맞춘 것 - 둘 중 하나만 바꾸면 어긋난다 */
-    #gameArea { flex-direction:column; align-items:center; width:100%; padding:0 16px; }
+    body {
+      align-items:flex-start;
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+    }
+    /* 좌우 패딩 16px*2=32px는 #wrap의 calc(100vw - 32px)와 값을 맞춘 것 - 둘 중 하나만 바꾸면 어긋난다.
+       노치가 있는 기기는 여기에 안전영역만큼 더해지므로 #wrap 폭 계산에도 반영한다. */
+    #gameArea {
+      flex-direction:column; align-items:center; width:100%;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
     #hud {
       width: min(800px, calc(100vw - 32px));
       flex-direction:row; flex-wrap:wrap; gap:6px;
@@ -621,7 +625,12 @@
      기존 "HUD 옆 + 캔버스" 배치를 그대로 유지한 채 화면 높이를 기준으로 캔버스를 최대한 키우는 쪽이
      훨씬 크게 보인다(모바일 전용 화면을 새로 만드는 대신 택한 절충안). */
   @media (max-width: 1024px) and (orientation: landscape) {
-    body { padding: 8px; }
+    body {
+      padding-top: max(8px, env(safe-area-inset-top));
+      padding-right: max(8px, env(safe-area-inset-right));
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      padding-left: max(8px, env(safe-area-inset-left));
+    }
     #gameArea { padding:0; gap:12px; }
     #hud { width:148px; font-size:11px; gap:6px; }
     #hud .box { padding:6px 9px; }
@@ -637,16 +646,29 @@
 
   @media (max-width: 600px) {
     /* 팝업이 화면 한켠에 어중간하게 떠 있으면 오류처럼 보인다는 피드백 - 좁은 화면에서는
-       테두리/여백을 없애고 꽉 채운 시트 형태로 바꿔 "의도된 화면"처럼 보이게 한다. */
+       테두리/여백을 없애고 꽉 채운 시트 형태로 바꾼다. 다만 화면을 꽉 채우는 만큼, 노치·홈
+       인디케이터 같은 안전영역(env(safe-area-inset-*))과 최소 여백을 반드시 챙겨야
+       내용이 화면 모서리에 바짝 붙어 "여백이 부족해 이상해 보이는" 문제가 생기지 않는다. */
     #dayEndBox, #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox {
       width:100%; height:100%; max-width:100%; max-height:100%;
       border-radius:0; border-width:0;
       display:flex; flex-direction:column; justify-content:center;
       box-shadow:none;
+      padding-top: max(24px, env(safe-area-inset-top));
+      padding-right: max(20px, env(safe-area-inset-right));
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      padding-left: max(20px, env(safe-area-inset-left));
     }
-    #settingsOverlay, #shopOverlay { padding:16px; }
-    #settingsClose, #shopClose { top:10px; right:10px; padding:6px 12px; font-size:11px; }
-    #shopOpenSettings { top:10px; right:100px; padding:6px 10px; font-size:11px; }
-    #touchActionBtn { padding:12px 16px; font-size:13px; }
+    #settingsOverlay, #shopOverlay {
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-right: max(18px, env(safe-area-inset-right));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+      padding-left: max(18px, env(safe-area-inset-left));
+    }
+    #settingsClose, #shopClose {
+      top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+      padding:6px 12px; font-size:11px;
+    }
+    #shopOpenSettings { top: max(10px, env(safe-area-inset-top)); right:100px; padding:6px 10px; font-size:11px; }
     #touchDirPad { grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(2, 38px); }
   }
