@@ -1,37 +1,40 @@
   * { margin:0; padding:0; box-sizing:border-box; }
 
   /* ============ 테마 시스템 ============ */
-  /* 기본(다크) 테마. 설정에서 테마를 바꾸면 이 변수들이 갱신된다. */
+  /* 기본(크림) 테마. 설정에서 테마를 바꾸면 이 변수들이 갱신된다. */
   :root {
-    --bg: #2e2a26;
-    --panel: #3d3730;
-    --panel2: #4a4238;
-    --border: #6b5f4f;
-    --borderStrong: #6b5f4f;
-    --text: #f4ece0;
-    --textDim: #cabfa9;
-    --accent: #e8b04b;
-    --accent2: #f0c96a;
-    --good: #6fae7a;
-    --bad: #d97a70;
-    --accentFill: #e8b04b;
-    --goodFill: #498253;
-    --badFill: #cb493c;
-    --floor1: #8a6a4a;
-    --floor2: #7c5e40;
-    --radius: 14px;
-    --radiusSm: 9px;
+    --bg: #fff8f0;
+    --panel: #ffffff;
+    --panel2: #fff1e0;
+    --border: #f3e6d6;
+    --borderStrong: #ffb88c;
+    --text: #4a3f35;
+    --textDim: #8a7c6c;
+    --accent: #c2410c;
+    --accent2: #ea580c;
+    --good: #15803d;
+    --bad: #dc2626;
+    --accentFill: #ea580c;
+    --goodFill: #16a34a;
+    --badFill: #dc2626;
+    --floor1: #e8ddc8;
+    --floor2: #ddd0b6;
+    --radius: 16px;
+    --radiusSm: 12px;
 
-    /* 설정창/상점/타이틀 화면/대사창처럼 테마와 무관하게 항상 어두운 반투명 배경(rgba(20,17,14,..))
-       위에 직접 놓이는 글자용 색상. 테마가 바뀌어도 이 배경은 계속 어둡기 때문에 값을 고정한다. */
-    --accentOnDark: #e8b04b;
-    --accent2OnDark: #f0c96a;
-    --textOnDark: #f4ece0;
-    --textDimOnDark: #cabfa9;
-    --goodOnDark: #89bd92;
+    /* 대사창/터치 버튼처럼 캔버스 위에 항상 어두운 반투명 배경으로 떠 있는 요소용 글자색.
+       이 요소들은 테마와 무관하게 계속 어두운 배경을 쓰기 때문에 값을 고정한다. */
+    --accentOnDark: #ffcb8a;
+    --accent2OnDark: #ffdba6;
+    --textOnDark: #fbf3e8;
+    --textDimOnDark: #d8c9b8;
+    --goodOnDark: #8fe0ab;
   }
 
-  * { font-family: 'Trebuchet MS', 'Segoe UI', 'Malgun Gothic', sans-serif; }
+  * { font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif; }
+  /* 헤딩/버튼/HUD 숫자처럼 존재감이 필요한 곳은 별도 서체 대신 굵기(weight)로 위계를 준다 -
+     한 서체(Pretendard) 안에서 굵기만 다르게 써야 화면 전체가 하나의 톤으로 통일되어 보인다. */
+  :root { --font-display: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif; }
 
   body {
     background: var(--bg);
@@ -39,13 +42,14 @@
     min-height:100vh;
     color: var(--text);
   }
-  #gameArea { display:flex; gap:14px; align-items:stretch; max-width:100%; }
+  #gameArea { display:flex; gap:16px; align-items:stretch; max-width:100%; }
+  #gameColumn { display:flex; flex-direction:column; align-items:center; gap:10px; }
   #wrap {
     position:relative;
     width: min(800px, calc(100vw - 32px));
-    border: 5px solid var(--borderStrong);
+    border: 3px solid var(--borderStrong);
     border-radius: var(--radius);
-    box-shadow: 0 8px 26px rgba(0,0,0,0.35);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
     background: var(--panel2);
     overflow:hidden;
     flex-shrink:0;
@@ -57,6 +61,38 @@
     border-radius: calc(var(--radius) - 4px);
     width:100%; height:auto; /* 컨테이너(#wrap) 폭에 맞춰 비율 유지하며 축소 - 반응형 대응 */
     touch-action: none; /* 캔버스를 터치로 드래그해도 페이지가 스크롤되지 않게(탭-이동 제스처 보호) */
+  }
+
+  /* ============ 게임다운 톤: 버튼/헤딩 공용 처리 ============ */
+  /* 광택 있는 입체(내부 하이라이트+그라디언트) 대신, 두꺼운 단색 테두리 + 아래로 짧게 떨어지는
+     단일 그림자만 쓰는 "카툰 스티커" 스타일로 통일한다. 색은 각 버튼별 기존 규칙을 그대로 두고
+     그림자/서체만 겹쳐 씌우는 방식이라 테마별 색상 시스템은 건드리지 않는다. */
+  h1, h2, h3, .boxValue, .modeTitle, .shopItem .name, .miLabel, .slotTitle {
+    font-family: var(--font-display);
+    font-weight: 800;
+  }
+  button {
+    font-family: var(--font-display);
+    font-weight: 600;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  button:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: none;
+  }
+  /* 탭처럼 "선택된" 상태는 살짝 눌려 들어간 느낌으로 - 떠 있는 다른 버튼과 구분되게 */
+  button.active, button[aria-selected="true"] {
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+  button:disabled { box-shadow:none; }
+  /* 인벤토리 칸을 감싸는 투명 버튼 - 안의 슬롯이 이미 각자 입체감을 갖고 있어 바깥에 또 그림자를 얹으면 이중으로 떠 보인다 */
+  #invSlots, #invSlots:active { box-shadow:none; }
+
+  /* 중앙 팝업창들 - 그림자 하나로만 화면 위에 살짝 떠 있는 느낌을 준다(진한 다중 그림자는 지양) */
+  #dayEndBox, #tutorialChoiceBox, #modeChoiceBox, #slotBox, #modeChangeConfirmBox {
+    box-shadow: 0 10px 28px rgba(0,0,0,0.4);
   }
 
   /* ============ 플레이어 인벤토리(아이템 2칸) - 게임 화면 위쪽에 오버레이 ============ */
@@ -116,21 +152,27 @@
     border: 2px solid var(--border);
     border-radius: var(--radiusSm);
     padding:9px 12px;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   }
   #hud .box .boxLabel { font-size:10px; color: var(--textDim); margin-bottom:2px; }
-  #hud .box .boxValue { font-size:14px; font-weight:bold; }
+  #hud .box .boxValue { font-size:16px; }
   #xpbarWrap { margin-top:2px; }
   #xpbar {
     width:100%; height:10px; background: var(--panel);
     border: 2px solid var(--border);
     border-radius:20px; overflow:hidden;
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.3);
   }
-  #xpfill { height:100%; background:linear-gradient(90deg, var(--accent), var(--accent2)); width:0%; transition:width .3s; border-radius:20px; }
+  #xpfill {
+    height:100%; width:0%; transition:width .3s; border-radius:20px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 55%),
+      linear-gradient(90deg, var(--accent), var(--accent2));
+  }
   #xpbarLabel { font-size:10px; color: var(--textDim); margin-top:3px; text-align:center; }
 
   #msg {
-    width:952px; margin-top:10px; min-height:20px;
+    width:100%; min-height:20px;
     color: var(--textDim); font-size:12px; text-align:center;
   }
   #dialogue {
@@ -147,12 +189,12 @@
   #dialogue .name { color: var(--accentOnDark); font-weight:bold; margin-bottom:4px; font-size:13px; }
 
   #shopOverlay {
-    position:absolute; inset:0; background: rgba(20,17,14,0.9);
+    position:absolute; inset:0; background: var(--bg);
     display:none; z-index:30; padding:24px; overflow-y:auto;
     border-radius: calc(var(--radius) - 4px);
   }
   #shopOverlay.open { display:block; }
-  #shopOverlay h2 { color: var(--accentOnDark); font-size:16px; margin-bottom:12px; }
+  #shopOverlay h2 { color: var(--accent); font-size:16px; margin-bottom:12px; }
   .shopGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .shopItem {
     background: var(--panel); border:2px solid var(--border); border-radius: var(--radiusSm);
@@ -251,11 +293,11 @@
   #modeChoiceBtns .modeDesc { font-size:11px; color: var(--textDim); line-height:1.5; }
 
   #settingsOverlay {
-    position:absolute; inset:0; background: rgba(20,17,14,0.97);
+    position:absolute; inset:0; background: var(--bg);
     display:none; z-index:55; padding:24px; overflow-y:auto;
   }
   #settingsOverlay.open { display:block; }
-  #settingsOverlay h2 { color: var(--accentOnDark); font-size:16px; margin-bottom:14px; }
+  #settingsOverlay h2 { color: var(--accent); font-size:16px; margin-bottom:14px; }
   #settingsClose {
     position:absolute; top:16px; right:20px; background: var(--badFill); color:#fff;
     border:none; padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit; font-weight:bold;
@@ -274,14 +316,14 @@
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
   #customerTypeTabs button.active { background: var(--accentFill); color:#2a2018; }
-  #customerTypeEditArea { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; color: var(--textOnDark); font-size:12px; min-width:280px; }
+  #customerTypeEditArea { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; color: var(--text); font-size:12px; min-width:280px; }
   #customerTypeEditArea label { display:flex; align-items:center; gap:6px; }
   #customerTypeEditArea input[type=text] { background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-family:inherit; width:110px; }
   #customerTypeEditArea .prefStationChecks { display:flex; gap:6px; flex-wrap:wrap; }
-  #settingsUploadArea { flex:1; min-width:260px; color: var(--textDimOnDark); font-size:12px; }
+  #settingsUploadArea { flex:1; min-width:260px; color: var(--textDim); font-size:12px; }
   #settingsUploadArea .uploadRow { margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  #settingsUploadArea .uploadRow > label:first-child { min-width:70px; color: var(--accent2OnDark); }
-  #settingsUploadArea .thumbStatus { font-size:11px; color: var(--goodOnDark); }
+  #settingsUploadArea .uploadRow > label:first-child { min-width:70px; color: var(--accent2); }
+  #settingsUploadArea .thumbStatus { font-size:11px; color: var(--good); }
 
   /* ============ 이미지 드롭존: 클릭/드래그앤드롭으로 이미지 업로드하는 카드형 버튼 ============ */
   .dropzone {
@@ -342,11 +384,11 @@
     border-color: var(--accent); background: var(--accent);
     box-shadow: inset 0 0 0 3px var(--panel2);
   }
-  /* radioChip은 설정창의 어두운 반투명 배경(rgba(20,17,14,..)) 위에 직접 놓이고, 체크 상태에서는
-     그 배경이 그대로 비치는 반투명 강조색을 덧씌우는 구조라 실제로는 항상 어두운 배경이 유지된다.
-     그래서 글자색은 테마별 --text(밝은 테마에서는 어두운 색)가 아니라 --textOnDark를 써야 한다. */
+  /* radioChip은 설정창 배경(var(--bg), 테마를 따라 바뀜) 위에 직접 놓인다. 체크 상태의 배경은
+     accent를 옅게 탄 반투명 틴트라 테마와 함께 밝기가 바뀌므로, 글자색도 고정값이 아니라
+     테마를 따라가는 --text를 쓴다. */
   .radioChip:has(input:checked), .radioChip.checkedChip {
-    border-color: var(--accent); background: rgba(232,176,75,0.14); color: var(--textOnDark);
+    border-color: var(--accent); background: rgba(232,176,75,0.14); color: var(--text);
   }
 
   #settingsPreview {
@@ -355,7 +397,7 @@
   }
   #settingsPreview .previewLabel { color: var(--textDim); font-size:11px; margin-bottom:6px; }
   #previewCanvas { background: var(--panel2); border-radius: var(--radiusSm); }
-  .settingsHint { margin-top:18px; color: var(--textDimOnDark); opacity:0.8; font-size:11px; line-height:1.5; }
+  .settingsHint { margin-top:18px; color: var(--textDim); opacity:0.8; font-size:11px; line-height:1.5; }
 
   #settingsMainTabs { display:flex; gap:6px; margin-bottom:16px; }
   #settingsMainTabs button {
@@ -395,8 +437,8 @@
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
 
-  .gamePanelRow { margin-bottom:24px; color: var(--textOnDark); }
-  .gamePanelRow h3 { font-size:13px; color: var(--accentOnDark); margin-bottom:10px; }
+  .gamePanelRow { margin-bottom:24px; color: var(--text); }
+  .gamePanelRow h3 { font-size:13px; color: var(--accent); margin-bottom:10px; }
   #settingsChangeMode {
     background: var(--badFill); color:#fff; border:none; padding:9px 18px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
@@ -416,7 +458,7 @@
   .saveSlotRow button.deleteBtn { background: var(--badFill); }
 
   #titleOverlay {
-    position:absolute; inset:0; background: rgba(20,17,14,0.97);
+    position:absolute; inset:0; background: var(--bg);
     display:flex; z-index:70; align-items:center; justify-content:center;
     border-radius: calc(var(--radius) - 4px);
   }
@@ -424,7 +466,9 @@
   #titleBox { text-align:center; color: var(--text); }
   #titleIconPreview { font-size:44px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; height:56px; }
   #titleIconPreview img { max-height:56px; max-width:120px; object-fit:contain; }
-  #titleBox h1 { font-size:26px; color: var(--accentOnDark); margin-bottom:24px; }
+  #titleBox h1 {
+    font-size:38px; color: var(--accent); margin-bottom:28px; letter-spacing:1px;
+  }
   #titleBtns { display:flex; flex-direction:column; gap:12px; width:240px; margin:0 auto; }
   #titleBtns button {
     padding:14px; border:2px solid var(--border); border-radius:20px; cursor:pointer;
@@ -472,13 +516,15 @@
     width:40px; height:40px; border-radius:50%; cursor:pointer;
     border:3px solid transparent; transition: transform 0.1s, border-color 0.1s;
     padding:0; font-family:inherit;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
   .themeSwatch:hover { transform: scale(1.08); }
   .themeSwatch.active { border-color: var(--accent); transform: scale(1.1); }
+  .themeSwatch:active { transform: scale(0.95); }
 
   /* ============ 시작화면/가게이름 커스텀 ============ */
   .titleCustomRow { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-  .titleCustomRow label, .titleCustomRow .rowLabel { min-width:80px; color: var(--accent2OnDark); font-size:12px; }
+  .titleCustomRow label, .titleCustomRow .rowLabel { min-width:80px; color: var(--accent2); font-size:12px; }
   #titleNameInput {
     background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px;
     padding:6px 10px; font-family:inherit; font-size:12px; width:180px;
@@ -538,9 +584,6 @@
     touch-action: manipulation;
   }
   #touchActionBtn { padding:14px 20px; font-size:15px; }
-  #touchRunBtn { padding:10px 14px; font-size:15px; display:none; }
-  #touchRunBtn.on { background: var(--accentFill); color:#2a2018; border-color: var(--accentFill); }
-  #touchRunBtn.show { display:inline-block; }
 
   #touchDirPad {
     position:absolute; left:calc(10px + env(safe-area-inset-left, 0px)); bottom:calc(10px + env(safe-area-inset-bottom, 0px));
@@ -559,9 +602,12 @@
   #touchDirPad [data-dir="down"] { grid-column:2; grid-row:2; }
 
   /* ============ 반응형 레이아웃 (모바일/좁은 화면) ============ */
-  @media (max-width: 1000px) {
+  /* 세로(portrait)로 든 좁은 화면: HUD를 캔버스 위로 올리고 2열로 접는다. 게임 화면(캔버스) 비율이
+     가로로 넓어서(800:520) 세로 모드에서는 화면 폭에 맞춰 캔버스가 작아질 수밖에 없다 - 아래
+     가로모드 규칙이 그 대안이니, 세로로 쓰는 경우 상단에 "가로로 돌리면 더 커져요" 안내를 겸한다. */
+  @media (max-width: 1000px) and (orientation: portrait) {
     body { align-items:flex-start; padding: 12px 0 24px; }
-    /* 좌우 패딩 16px*2=32px는 #wrap/#msg의 calc(100vw - 32px)와 값을 맞춘 것 - 둘 중 하나만 바꾸면 어긋난다 */
+    /* 좌우 패딩 16px*2=32px는 #wrap의 calc(100vw - 32px)와 값을 맞춘 것 - 둘 중 하나만 바꾸면 어긋난다 */
     #gameArea { flex-direction:column; align-items:center; width:100%; padding:0 16px; }
     #hud {
       width: min(800px, calc(100vw - 32px));
@@ -569,11 +615,35 @@
     }
     #hud .box { flex:1 1 100px; }
     #invSlotsWrap { margin-top:0; flex:1 1 100%; order:99; }
-    #msg { width: min(800px, calc(100vw - 32px)); }
   }
 
-  @media (max-width: 480px) {
-    #dayEndBox, #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox { padding:18px; }
+  /* 가로(landscape)로 든 화면: 이 게임의 캔버스 자체가 가로로 넓은 비율이라, 세로 쌓기보다
+     기존 "HUD 옆 + 캔버스" 배치를 그대로 유지한 채 화면 높이를 기준으로 캔버스를 최대한 키우는 쪽이
+     훨씬 크게 보인다(모바일 전용 화면을 새로 만드는 대신 택한 절충안). */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    body { padding: 8px; }
+    #gameArea { padding:0; gap:12px; }
+    #hud { width:148px; font-size:11px; gap:6px; }
+    #hud .box { padding:6px 9px; }
+    #hud .box .boxValue { font-size:14px; }
+    #hudShopBtn { font-size:12px; padding:7px 6px; }
+    #wrap {
+      width: min(800px, calc(100vw - 148px - 12px - 16px), calc((100vh - 16px) * 1.5385));
+    }
+    /* 세로 공간이 빠듯한 가로모드에선 하단 안내문구를 생략한다 - 조작법은 화면의 행동 버튼과
+       탭-이동만으로 이미 충분히 전달되고, 문구까지 넣으면 캔버스가 더 작아진다. */
+    #msg { display:none; }
+  }
+
+  @media (max-width: 600px) {
+    /* 팝업이 화면 한켠에 어중간하게 떠 있으면 오류처럼 보인다는 피드백 - 좁은 화면에서는
+       테두리/여백을 없애고 꽉 채운 시트 형태로 바꿔 "의도된 화면"처럼 보이게 한다. */
+    #dayEndBox, #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox {
+      width:100%; height:100%; max-width:100%; max-height:100%;
+      border-radius:0; border-width:0;
+      display:flex; flex-direction:column; justify-content:center;
+      box-shadow:none;
+    }
     #settingsOverlay, #shopOverlay { padding:16px; }
     #settingsClose, #shopClose { top:10px; right:10px; padding:6px 12px; font-size:11px; }
     #shopOpenSettings { top:10px; right:100px; padding:6px 10px; font-size:11px; }

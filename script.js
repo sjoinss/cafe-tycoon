@@ -20,15 +20,19 @@ let gameMode = 'normal'; // 'normal' | 'idle'
 // accentFill/goodFill/badFill은 반대로 "고정된 흰색/검정 글자를 올리는 버튼 배경"으로 쓰일 때를 위한
 // 별도 색상이다(예: 탭 활성화 배경 + 검정 글자, 버튼 배경 + 흰 글자) - 텍스트용 색과 밝기 방향이 반대라
 // 같은 변수를 재사용하면 한쪽이 항상 깨지기 때문에 분리했다.
+// 카드(panel)는 대부분의 밝은 테마에서 흰색으로 통일하고, 테마마다 배경 색조와 포인트색만
+// 바꾸는 방식(토스 등 최신 앱들의 흔한 테마 구성)이라 테마를 바꿔도 UI 언어가 일관되게 유지된다.
+// 다크 테마만 예외로 카드 자체도 어둡다. accent/good/bad는 흰 카드 위에서 4.5:1 이상을 확보한
+// 값이고, accentFill/goodFill/badFill은 흰 글자를 얹는 버튼 배경이라 그만큼 더 진하게 잡았다.
 const THEMES = {
-  dark:   { label:'다크', swatch:'#3d3730', vars: { bg:'#2e2a26', panel:'#3d3730', panel2:'#4a4238', border:'#6b5f4f', borderStrong:'#6b5f4f', text:'#f4ece0', textDim:'#cabfa9', accent:'#e8b04b', accent2:'#f0c96a', good:'#89bd92', bad:'#e49f98', accentFill:'#e8b04b', goodFill:'#498253', badFill:'#cb493c', floor1:'#8a6a4a', floor2:'#7c5e40' } },
-  white:  { label:'화이트', swatch:'#f0ece4', vars: { bg:'#efeae2', panel:'#fbf8f3', panel2:'#f2ede4', border:'#d8cdb8', borderStrong:'#a99a7c', text:'#4a4238', textDim:'#706756', accent:'#905e19', accent2:'#8e5e14', good:'#42754b', bad:'#bb3f32', accentFill:'#e0a34e', goodFill:'#498253', badFill:'#cb493c', floor1:'#e8ddc8', floor2:'#ddd0b6' } },
-  sky:    { label:'하늘색', swatch:'#bfe3f5', vars: { bg:'#dff1fa', panel:'#eef8fd', panel2:'#d9eef8', border:'#a9d8ee', borderStrong:'#4f8fb8', text:'#355368', textDim:'#4f6d7f', accent:'#266f9a', accent2:'#1e6f9d', good:'#42754b', bad:'#c03731', accentFill:'#5aa8d6', goodFill:'#498253', badFill:'#ce4741', floor1:'#cfeaf6', floor2:'#bfe1f2' } },
-  pink:   { label:'분홍색', swatch:'#f6cddc', vars: { bg:'#fbe4ec', panel:'#fef3f7', panel2:'#fbe8ef', border:'#f2bcd0', borderStrong:'#c96690', text:'#6b3a4c', textDim:'#91596e', accent:'#c22d63', accent2:'#c22661', good:'#42734e', bad:'#c03731', accentFill:'#e386a8', goodFill:'#4a8056', badFill:'#ce4741', floor1:'#fbdce7', floor2:'#f6cfdd' } },
-  yellow: { label:'노란색', swatch:'#f8e3a0', vars: { bg:'#fbf0cf', panel:'#fdf8e8', panel2:'#faf0d3', border:'#f0dd9e', borderStrong:'#b8933a', text:'#6b5a2a', textDim:'#796b42', accent:'#856615', accent2:'#86670f', good:'#447750', bad:'#c43932', accentFill:'#e0b23a', goodFill:'#4a8056', badFill:'#ce4741', floor1:'#f9edc0', floor2:'#f5e5ab' } },
-  green:  { label:'연두색', swatch:'#cdeab8', vars: { bg:'#e6f5da', panel:'#f3faed', panel2:'#e9f5df', border:'#c3e6ac', borderStrong:'#5f9c46', text:'#3f5c2f', textDim:'#5c734d', accent:'#487a2d', accent2:'#427826', good:'#3e7a4a', bad:'#c43932', accentFill:'#7ec25a', goodFill:'#438450', badFill:'#ce4741', floor1:'#dcf0cb', floor2:'#cfe9b8' } },
+  white:  { label:'크림', swatch:'#fff1e0', vars: { bg:'#fff8f0', panel:'#ffffff', panel2:'#fff1e0', border:'#f3e6d6', borderStrong:'#ffb88c', text:'#4a3f35', textDim:'#8a7c6c', accent:'#c2410c', accent2:'#ea580c', good:'#15803d', bad:'#dc2626', accentFill:'#ea580c', goodFill:'#16a34a', badFill:'#dc2626', floor1:'#e8ddc8', floor2:'#ddd0b6' } },
+  sky:    { label:'하늘색', swatch:'#bfe3f5', vars: { bg:'#eef7fd', panel:'#ffffff', panel2:'#e3f3fc', border:'#d6ecf9', borderStrong:'#7cc5ef', text:'#1e4a63', textDim:'#5c7f92', accent:'#0369a1', accent2:'#0284c7', good:'#15803d', bad:'#dc2626', accentFill:'#0284c7', goodFill:'#16a34a', badFill:'#dc2626', floor1:'#cfeaf6', floor2:'#bfe1f2' } },
+  pink:   { label:'분홍색', swatch:'#f6cddc', vars: { bg:'#fef0f6', panel:'#ffffff', panel2:'#fde5ef', border:'#fbd4e6', borderStrong:'#f68fbb', text:'#6b2049', textDim:'#a4677f', accent:'#be185d', accent2:'#db2777', good:'#15803d', bad:'#dc2626', accentFill:'#db2777', goodFill:'#16a34a', badFill:'#dc2626', floor1:'#fbdce7', floor2:'#f6cfdd' } },
+  yellow: { label:'노란색', swatch:'#f8e3a0', vars: { bg:'#fefaea', panel:'#ffffff', panel2:'#fdf3d4', border:'#fbe9b8', borderStrong:'#f0c94a', text:'#78350f', textDim:'#92703a', accent:'#b45309', accent2:'#d97706', good:'#15803d', bad:'#dc2626', accentFill:'#d97706', goodFill:'#16a34a', badFill:'#dc2626', floor1:'#f9edc0', floor2:'#f5e5ab' } },
+  green:  { label:'연두색', swatch:'#cdeab8', vars: { bg:'#f0faed', panel:'#ffffff', panel2:'#e5f7e0', border:'#d3edca', borderStrong:'#7ecf6a', text:'#166534', textDim:'#4d7a3f', accent:'#15803d', accent2:'#16a34a', good:'#15803d', bad:'#dc2626', accentFill:'#16a34a', goodFill:'#16a34a', badFill:'#dc2626', floor1:'#dcf0cb', floor2:'#cfe9b8' } },
+  dark:   { label:'다크', swatch:'#2a2440', vars: { bg:'#1e1b2e', panel:'#282442', panel2:'#332c52', border:'#3d3560', borderStrong:'#5c4f8a', text:'#f5f3fa', textDim:'#b3a9cc', accent:'#ffb088', accent2:'#ffd0ae', good:'#7ee0a8', bad:'#ff8f8f', accentFill:'#ff8b5e', goodFill:'#22c55e', badFill:'#ef4444', floor1:'#5c4a3a', floor2:'#4a3c2e' } },
 };
-let currentTheme = 'dark';
+let currentTheme = 'white';
 
 // ============ 가게 이름 / 시작화면 아이콘 커스텀 ============
 let gameTitleName = '카페 타이쿤';
@@ -352,7 +356,6 @@ function refreshHUD(){
   }
 
   updateInvSlotsUI();
-  touchRunBtn.classList.toggle('show', level >= RUN_UNLOCK_LEVEL);
 }
 
 // 캔버스 위쪽 인벤토리 슬롯(2칸) UI를 현재 player.inventory/activeSlot 상태에 맞게 갱신한다.
@@ -967,13 +970,16 @@ function updatePlayer(){
     // 이동 로직과 동일한 방식으로 목표 지점까지 지그재그로 다가가게 한다.
     const cx = player.x+player.w/2, cy = player.y+player.h/2;
     const tdx = touchMoveTarget.x-cx, tdy = touchMoveTarget.y-cy;
-    if (Math.hypot(tdx,tdy) < 4) { touchMoveTarget = null; }
+    if (Math.hypot(tdx,tdy) < 4) {
+      touchMoveTarget = null;
+      if (pendingAutoInteract) { pendingAutoInteract = false; tryInteract(); }
+    }
     else if (Math.abs(tdx) >= Math.abs(tdy)) { dx = tdx>0?1:-1; player.dir = dx>0?'right':'left'; }
     else { dy = tdy>0?1:-1; player.dir = dy>0?'down':'up'; }
   }
 
   player.moving = (dx!==0||dy!==0) && !miniGameActive && !menuOpen && !shopOpen && !dialogueActive;
-  player.running = player.moving && (keys['shift']===true || touchRunEnabled) && level >= RUN_UNLOCK_LEVEL;
+  player.running = player.moving && (keys['shift']===true) && level >= RUN_UNLOCK_LEVEL;
   const spd = player.running ? player.runSpeed : player.speed;
 
   if (tutorialActive && tutorialStep===0 && player.moving) advanceTutorial();
@@ -1106,8 +1112,10 @@ function selectMenuItem(menuId){
 
 // 캔버스를 탭한 위치로 캐릭터가 걸어간다. 대사/미니게임 중엔 이동 대신 스페이스와 동일하게
 // 상호작용으로 처리해서, 키보드 없이도 대사 넘기기·미니게임 조작이 가능하게 한다.
+// 설비/테이블을 직접 탭하면 그 앞까지 걸어간 뒤 도착하자마자 자동으로 상호작용까지 이어진다
+// ("기계를 누르면 작동해야 한다"는 피드백 반영) - 빈 바닥을 탭했을 땐 이동만 한다.
 let touchMoveTarget = null; // {x,y} - 캔버스 내부 좌표(0~800, 0~520) 기준
-let touchRunEnabled = false; // 모바일에서 Shift 길게 누르기 대신 쓰는 달리기 토글
+let pendingAutoInteract = false; // 탭으로 지정한 목표에 도착하면 자동으로 tryInteract()를 한 번 호출
 
 function canvasPointFromEvent(e){
   const rect = canvas.getBoundingClientRect();
@@ -1116,11 +1124,36 @@ function canvasPointFromEvent(e){
   return { x: (e.clientX-rect.left)*scaleX, y: (e.clientY-rect.top)*scaleY };
 }
 
+// 탭 좌표(px,py)가 설비 또는 테이블의 대략적인 그림 영역 위에 있는지 확인한다.
+// 그림이 타일보다 위로 솟아 있는 경우가 많아, 타일 자체보다 위/아래로 넉넉하게 판정 범위를 잡는다.
+function findTappedInteractable(px, py){
+  for (const key in stationSlots) {
+    if (!STATIONS_DEF[key].owned) continue;
+    const s = stationSlots[key];
+    const x1=s.x*TILE, y1=(s.y-1)*TILE, x2=(s.x+s.w)*TILE, y2=(s.y+2)*TILE;
+    if (px>=x1 && px<x2 && py>=y1 && py<y2) return { ox:s.x, oy:s.y, w:s.w, h:1, approach:'station' };
+  }
+  for (const t of activeTables()) {
+    const x1=t.x*TILE, y1=(t.y-1)*TILE, x2=(t.x+1)*TILE, y2=(t.y+1)*TILE;
+    if (px>=x1 && px<x2 && py>=y1 && py<y2) return { ox:t.x, oy:t.y, w:1, h:1, approach:'table' };
+  }
+  return null;
+}
+
 canvas.addEventListener('pointerdown', e => {
   if (titleActive || shopOpen || settingsOpen || menuOpen) return; // 이 상태들은 실제 버튼(오버레이/메뉴)으로 조작
   if (dialogueActive || miniGameActive) { e.preventDefault(); tryInteract(); return; }
   e.preventDefault();
-  touchMoveTarget = canvasPointFromEvent(e);
+  const p = canvasPointFromEvent(e);
+  const hit = findTappedInteractable(p.x, p.y);
+  if (hit) {
+    const adj = findNearestAdjacentOpenTile(hit.ox, hit.oy, hit.w, hit.h, hit.approach);
+    touchMoveTarget = { x: adj.tx*TILE + TILE/2, y: adj.ty*TILE + TILE/2 + (adj.pixelOffsetY||0) };
+    pendingAutoInteract = true;
+  } else {
+    touchMoveTarget = p;
+    pendingAutoInteract = false;
+  }
 });
 
 // 디저트 포장 미니게임의 방향 입력. 물리 방향키(keydown)와 아래 터치 방향패드가 모두 이 함수를 공유한다.
@@ -1133,13 +1166,6 @@ function handleSequenceDirection(dir){
 
 const touchActionBtn = document.getElementById('touchActionBtn');
 touchActionBtn.addEventListener('pointerdown', e => { e.preventDefault(); tryInteract(); });
-
-const touchRunBtn = document.getElementById('touchRunBtn');
-touchRunBtn.addEventListener('click', () => {
-  touchRunEnabled = !touchRunEnabled;
-  touchRunBtn.classList.toggle('on', touchRunEnabled);
-  touchRunBtn.setAttribute('aria-pressed', touchRunEnabled ? 'true' : 'false');
-});
 
 const touchDirPad = document.getElementById('touchDirPad');
 touchDirPad.querySelectorAll('.dirBtn').forEach(btn => {
@@ -2599,7 +2625,7 @@ function renderSettingsBody(){
       settingsUploadArea.appendChild(row);
     });
   } else {
-    settingsUploadArea.innerHTML = '<div style="color:var(--textDimOnDark);">기본 도트 캐릭터를 사용해요.</div>';
+    settingsUploadArea.innerHTML = '<div style="color:var(--textDim);">기본 도트 캐릭터를 사용해요.</div>';
   }
 
   drawSettingsPreview();
@@ -2621,7 +2647,7 @@ function renderCustomerSettingsBody(){
   if (customerCustom.mode==='none') {
     typeTabs.style.display = 'none';
     editArea.style.display = 'none';
-    settingsUploadArea.innerHTML = '<div style="color:var(--textDimOnDark);">모든 손님이 기본 도트 그림으로 나와요.</div>';
+    settingsUploadArea.innerHTML = '<div style="color:var(--textDim);">모든 손님이 기본 도트 그림으로 나와요.</div>';
     drawCustomerPreview(null);
     return;
   }

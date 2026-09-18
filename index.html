@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>카페 타이쿤 - 프로토타입 v2</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <link rel="stylesheet" href="style.css">
 
 </head>
@@ -19,9 +20,7 @@
     <div class="boxLabel">Lv.<span id="level">1</span> <span id="levelName">신입 사장</span></div>
     <div id="xpbarWrap"><div id="xpbar"><div id="xpfill"></div></div></div>
   </div>
-  <div class="box">
-    <button id="hudShopBtn" type="button">🛒 상점 <span class="keyHint">[P]</span></button>
-  </div>
+  <button id="hudShopBtn" type="button">🛒 상점 <span class="keyHint">[P]</span></button>
   <div id="invSlotsWrap">
     <div id="invSlotsLabel"><span class="swapKey">Q</span> 아이템 전환 ⟷</div>
     <button type="button" id="invSlots" aria-label="아이템 전환 (단축키 Q)">
@@ -32,6 +31,7 @@
   </div>
 </div>
 
+<div id="gameColumn">
 <div id="wrap">
   <canvas id="game" width="800" height="520" role="img" aria-label="카페 매장 화면. 캐릭터를 이동해 손님을 응대하는 게임 화면입니다.">이 브라우저는 캔버스(canvas)를 지원하지 않아 게임 화면을 표시할 수 없습니다. 최신 브라우저로 열어주세요.</canvas>
   <div id="dialogue" role="status" aria-live="polite">
@@ -50,7 +50,6 @@
     <button type="button" class="dirBtn" data-dir="down" aria-label="아래쪽 방향">▼</button>
   </div>
   <div id="touchControls">
-    <button type="button" id="touchRunBtn" aria-pressed="false" aria-label="달리기 켜기/끄기">🏃</button>
     <button type="button" id="touchActionBtn" aria-label="행동하기 (스페이스바와 동일 - 상호작용/대사 넘기기/미니게임 조작)">✋ 행동</button>
   </div>
   <div id="titleOverlay" role="dialog" aria-modal="true" aria-labelledby="titleGameName" tabindex="-1">
@@ -232,9 +231,10 @@
     </div>
   </div>
 </div>
-</div>
 
 <div id="msg" role="status" aria-live="polite">방향키/WASD 이동(Shift로 달리기, Lv.3부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기</div>
+</div>
+</div>
 
 <script src="script.js"></script>
 </body>
