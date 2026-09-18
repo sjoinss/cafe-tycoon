@@ -3544,4 +3544,15 @@ loadGlobalSettings();
 loadGlobalCustom();
 showTitle();
 
+// ============ PWA 서비스워커 등록 ============
+// 정적 리소스를 캐싱해 오프라인/홈화면 설치 실행을 지원한다.
+// localStorage/IndexedDB 저장 데이터에는 관여하지 않는다.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch((err) => {
+      console.warn('서비스워커 등록 실패:', err);
+    });
+  });
+}
+
 gameLoop();
