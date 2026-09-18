@@ -14,13 +14,19 @@ const COLS = 20, ROWS = 13;
 let gameMode = 'normal'; // 'normal' | 'idle'
 
 // ============ 테마 시스템 ============
+// 텍스트로 쓰이는 색상(textDim/accent/accent2/good/bad)은 패널/배경(bg/panel/panel2) 위에 놓였을 때
+// WCAG AA 기준(일반 텍스트 4.5:1)을 만족하도록 명도를 조정한 값이다. 원래의 파스텔 톤은
+// 밝은 테마에서 1.4~3.7:1 수준으로 대비가 부족해 저시력 사용자가 읽기 어려웠다.
+// accentFill/goodFill/badFill은 반대로 "고정된 흰색/검정 글자를 올리는 버튼 배경"으로 쓰일 때를 위한
+// 별도 색상이다(예: 탭 활성화 배경 + 검정 글자, 버튼 배경 + 흰 글자) - 텍스트용 색과 밝기 방향이 반대라
+// 같은 변수를 재사용하면 한쪽이 항상 깨지기 때문에 분리했다.
 const THEMES = {
-  dark:   { label:'다크', swatch:'#3d3730', vars: { bg:'#2e2a26', panel:'#3d3730', panel2:'#4a4238', border:'#6b5f4f', borderStrong:'#6b5f4f', text:'#f4ece0', textDim:'#cabfa9', accent:'#e8b04b', accent2:'#f0c96a', good:'#6fae7a', bad:'#d97a70', floor1:'#8a6a4a', floor2:'#7c5e40' } },
-  white:  { label:'화이트', swatch:'#f0ece4', vars: { bg:'#efeae2', panel:'#fbf8f3', panel2:'#f2ede4', border:'#d8cdb8', borderStrong:'#a99a7c', text:'#4a4238', textDim:'#8a7f6a', accent:'#e0a34e', accent2:'#eab86a', good:'#6fae7a', bad:'#d97a70', floor1:'#e8ddc8', floor2:'#ddd0b6' } },
-  sky:    { label:'하늘색', swatch:'#bfe3f5', vars: { bg:'#dff1fa', panel:'#eef8fd', panel2:'#d9eef8', border:'#a9d8ee', borderStrong:'#4f8fb8', text:'#355368', textDim:'#6f92a6', accent:'#5aa8d6', accent2:'#7dc0e6', good:'#6fae7a', bad:'#e08a86', floor1:'#cfeaf6', floor2:'#bfe1f2' } },
-  pink:   { label:'분홍색', swatch:'#f6cddc', vars: { bg:'#fbe4ec', panel:'#fef3f7', panel2:'#fbe8ef', border:'#f2bcd0', borderStrong:'#c96690', text:'#6b3a4c', textDim:'#a97488', accent:'#e386a8', accent2:'#eda3bf', good:'#7cb489', bad:'#e08a86', floor1:'#fbdce7', floor2:'#f6cfdd' } },
-  yellow: { label:'노란색', swatch:'#f8e3a0', vars: { bg:'#fbf0cf', panel:'#fdf8e8', panel2:'#faf0d3', border:'#f0dd9e', borderStrong:'#b8933a', text:'#6b5a2a', textDim:'#a6935c', accent:'#e0b23a', accent2:'#edc860', good:'#7cb489', bad:'#e08a86', floor1:'#f9edc0', floor2:'#f5e5ab' } },
-  green:  { label:'연두색', swatch:'#cdeab8', vars: { bg:'#e6f5da', panel:'#f3faed', panel2:'#e9f5df', border:'#c3e6ac', borderStrong:'#5f9c46', text:'#3f5c2f', textDim:'#7c9a68', accent:'#7ec25a', accent2:'#9ad57c', good:'#5aab6a', bad:'#e08a86', floor1:'#dcf0cb', floor2:'#cfe9b8' } },
+  dark:   { label:'다크', swatch:'#3d3730', vars: { bg:'#2e2a26', panel:'#3d3730', panel2:'#4a4238', border:'#6b5f4f', borderStrong:'#6b5f4f', text:'#f4ece0', textDim:'#cabfa9', accent:'#e8b04b', accent2:'#f0c96a', good:'#89bd92', bad:'#e49f98', accentFill:'#e8b04b', goodFill:'#498253', badFill:'#cb493c', floor1:'#8a6a4a', floor2:'#7c5e40' } },
+  white:  { label:'화이트', swatch:'#f0ece4', vars: { bg:'#efeae2', panel:'#fbf8f3', panel2:'#f2ede4', border:'#d8cdb8', borderStrong:'#a99a7c', text:'#4a4238', textDim:'#706756', accent:'#905e19', accent2:'#8e5e14', good:'#42754b', bad:'#bb3f32', accentFill:'#e0a34e', goodFill:'#498253', badFill:'#cb493c', floor1:'#e8ddc8', floor2:'#ddd0b6' } },
+  sky:    { label:'하늘색', swatch:'#bfe3f5', vars: { bg:'#dff1fa', panel:'#eef8fd', panel2:'#d9eef8', border:'#a9d8ee', borderStrong:'#4f8fb8', text:'#355368', textDim:'#4f6d7f', accent:'#266f9a', accent2:'#1e6f9d', good:'#42754b', bad:'#c03731', accentFill:'#5aa8d6', goodFill:'#498253', badFill:'#ce4741', floor1:'#cfeaf6', floor2:'#bfe1f2' } },
+  pink:   { label:'분홍색', swatch:'#f6cddc', vars: { bg:'#fbe4ec', panel:'#fef3f7', panel2:'#fbe8ef', border:'#f2bcd0', borderStrong:'#c96690', text:'#6b3a4c', textDim:'#91596e', accent:'#c22d63', accent2:'#c22661', good:'#42734e', bad:'#c03731', accentFill:'#e386a8', goodFill:'#4a8056', badFill:'#ce4741', floor1:'#fbdce7', floor2:'#f6cfdd' } },
+  yellow: { label:'노란색', swatch:'#f8e3a0', vars: { bg:'#fbf0cf', panel:'#fdf8e8', panel2:'#faf0d3', border:'#f0dd9e', borderStrong:'#b8933a', text:'#6b5a2a', textDim:'#796b42', accent:'#856615', accent2:'#86670f', good:'#447750', bad:'#c43932', accentFill:'#e0b23a', goodFill:'#4a8056', badFill:'#ce4741', floor1:'#f9edc0', floor2:'#f5e5ab' } },
+  green:  { label:'연두색', swatch:'#cdeab8', vars: { bg:'#e6f5da', panel:'#f3faed', panel2:'#e9f5df', border:'#c3e6ac', borderStrong:'#5f9c46', text:'#3f5c2f', textDim:'#5c734d', accent:'#487a2d', accent2:'#427826', good:'#3e7a4a', bad:'#c43932', accentFill:'#7ec25a', goodFill:'#438450', badFill:'#ce4741', floor1:'#dcf0cb', floor2:'#cfe9b8' } },
 };
 let currentTheme = 'dark';
 
@@ -33,7 +39,7 @@ function applyTitleCustom(){
   document.getElementById('titleGameName').textContent = gameTitleName || '카페 타이쿤';
   const preview = document.getElementById('titleIconPreview');
   if (gameTitleIcon.mode==='image' && gameTitleIcon.img) {
-    preview.innerHTML = `<img src="${gameTitleIcon.img.src}">`;
+    preview.innerHTML = `<img src="${gameTitleIcon.img.src}" alt="">`;
   } else {
     preview.textContent = gameTitleIcon.emoji || '☕';
   }
@@ -175,15 +181,18 @@ function createImageDropzone(opts){
       const img = document.createElement('img');
       img.className = 'dzPreview';
       img.src = opts.previewSrc;
+      img.alt = '';
       zone.appendChild(img);
       const badge = document.createElement('span');
       badge.className = 'dzBadge';
       badge.textContent = '✓';
+      badge.setAttribute('aria-hidden', 'true');
       zone.appendChild(badge);
     } else {
       const icon = document.createElement('div');
       icon.className = 'dzIcon';
       icon.textContent = '🖼️';
+      icon.setAttribute('aria-hidden', 'true');
       zone.appendChild(icon);
       const text = document.createElement('div');
       text.className = 'dzText';
@@ -193,6 +202,7 @@ function createImageDropzone(opts){
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.setAttribute('aria-label', `${opts.label || '이미지'} 업로드${opts.previewSrc ? ' (이미지가 등록되어 있음, 다시 선택하면 교체됩니다)' : ''}`);
     input.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) opts.onFile(file);
@@ -342,6 +352,7 @@ function refreshHUD(){
   }
 
   updateInvSlotsUI();
+  touchRunBtn.classList.toggle('show', level >= RUN_UNLOCK_LEVEL);
 }
 
 // 캔버스 위쪽 인벤토리 슬롯(2칸) UI를 현재 player.inventory/activeSlot 상태에 맞게 갱신한다.
@@ -708,30 +719,21 @@ window.addEventListener('keydown', e => {
   if (k === ' ') { e.preventDefault(); tryInteract(); }
   if (k === 'p') { toggleShop(); }
   if (k === 'q') { switchActiveSlot(); }
-  if (k === 'escape') { closeShop(); closeSettings(); if (menuOpen) { menuOpen=false; setMsg('취소했어요.'); } }
+  if (k === 'escape') { closeShop(); closeSettings(); if (menuOpen) { menuOpen=false; closeStationMenuUI(); setMsg('취소했어요.'); } }
   if (k === 'shift' && level < RUN_UNLOCK_LEVEL && !menuOpen && !shopOpen && !dialogueActive) {
     setMsg(`아직 달리기를 할 수 없어요. (Lv.${RUN_UNLOCK_LEVEL}에 해금)`);
   }
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)) touchMoveTarget = null; // 물리 키보드 이동이 우선하도록, 대기 중이던 탭-이동 목표는 취소
   if (menuOpen && !shopOpen) {
     const idx = parseInt(k);
     if (!isNaN(idx) && currentStationMenu[idx-1]) {
       selectMenuItem(currentStationMenu[idx-1].id);
     }
   }
-  // 디저트 포장 미니게임: 방향키 시퀀스 입력 처리
-  if (miniGameActive && miniGame && miniGame.type==='sequence') {
-    const dirKeyMap = { arrowup:'up', arrowdown:'down', arrowleft:'left', arrowright:'right', w:'up', s:'down', a:'left', d:'right' };
-    const pressedDir = dirKeyMap[k];
-    if (pressedDir) {
-      const expected = miniGame.sequence[miniGame.progress];
-      if (pressedDir === expected) {
-        miniGame.progress++;
-      } else {
-        miniGame.mistakeFlash = 12; // 실수해도 진행은 유지(난이도를 낮게 유지하기 위해 리셋하지 않음), 시각 피드백만
-      }
-    }
-  }
+  // 디저트 포장 미니게임: 방향키 시퀀스 입력 처리(터치 방향패드와 handleSequenceDirection을 공유)
+  const dirKeyMap = { arrowup:'up', arrowdown:'down', arrowleft:'left', arrowright:'right', w:'up', s:'down', a:'left', d:'right' };
+  if (dirKeyMap[k]) handleSequenceDirection(dirKeyMap[k]);
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -960,9 +962,18 @@ function updatePlayer(){
   else if (keys['arrowdown']||keys['s']) { dy=1; player.dir='down'; }
   else if (keys['arrowleft']||keys['a']) { dx=-1; player.dir='left'; }
   else if (keys['arrowright']||keys['d']) { dx=1; player.dir='right'; }
+  else if (touchMoveTarget) {
+    // 탭-이동: 물리 키보드 입력이 없을 때만 적용. 한 축씩(더 먼 축 우선) 이동시켜 기존 4방향
+    // 이동 로직과 동일한 방식으로 목표 지점까지 지그재그로 다가가게 한다.
+    const cx = player.x+player.w/2, cy = player.y+player.h/2;
+    const tdx = touchMoveTarget.x-cx, tdy = touchMoveTarget.y-cy;
+    if (Math.hypot(tdx,tdy) < 4) { touchMoveTarget = null; }
+    else if (Math.abs(tdx) >= Math.abs(tdy)) { dx = tdx>0?1:-1; player.dir = dx>0?'right':'left'; }
+    else { dy = tdy>0?1:-1; player.dir = dy>0?'down':'up'; }
+  }
 
   player.moving = (dx!==0||dy!==0) && !miniGameActive && !menuOpen && !shopOpen && !dialogueActive;
-  player.running = player.moving && (keys['shift']===true) && level >= RUN_UNLOCK_LEVEL;
+  player.running = player.moving && (keys['shift']===true || touchRunEnabled) && level >= RUN_UNLOCK_LEVEL;
   const spd = player.running ? player.runSpeed : player.speed;
 
   if (tutorialActive && tutorialStep===0 && player.moving) advanceTutorial();
@@ -1077,6 +1088,7 @@ function openStationMenu(stationId){
   });
   txt += '[ESC]취소';
   setMsg(txt);
+  renderStationMenuUI();
 }
 
 function selectMenuItem(menuId){
@@ -1084,8 +1096,90 @@ function selectMenuItem(menuId){
   if (!hasIngredient(menuId)) { setMsg(`${m.label} 재료(${INGREDIENT_LABELS[m.ingredient]})가 없어요! 상점에서 구매하세요.`); return; }
   if (!hasFreeInventorySlot()) { setMsg('손이 꽉 찼어요! 먼저 들고 있는 걸 서빙하세요. (Q로 아이템 전환)'); return; }
   menuOpen = false;
+  closeStationMenuUI();
   startMiniGame(m);
 }
+
+// ============ 터치/모바일 조작 ============
+// 이 섹션의 버튼들은 터치 기기 전용이 아니라 스페이스/Shift/숫자키처럼 물리 키보드에 의존하던
+// 조작을 마우스·스위치 등 키보드가 없는 입력으로도 쓸 수 있게 하는 접근성 대체 수단이기도 하다.
+
+// 캔버스를 탭한 위치로 캐릭터가 걸어간다. 대사/미니게임 중엔 이동 대신 스페이스와 동일하게
+// 상호작용으로 처리해서, 키보드 없이도 대사 넘기기·미니게임 조작이 가능하게 한다.
+let touchMoveTarget = null; // {x,y} - 캔버스 내부 좌표(0~800, 0~520) 기준
+let touchRunEnabled = false; // 모바일에서 Shift 길게 누르기 대신 쓰는 달리기 토글
+
+function canvasPointFromEvent(e){
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (e.clientX-rect.left)*scaleX, y: (e.clientY-rect.top)*scaleY };
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (titleActive || shopOpen || settingsOpen || menuOpen) return; // 이 상태들은 실제 버튼(오버레이/메뉴)으로 조작
+  if (dialogueActive || miniGameActive) { e.preventDefault(); tryInteract(); return; }
+  e.preventDefault();
+  touchMoveTarget = canvasPointFromEvent(e);
+});
+
+// 디저트 포장 미니게임의 방향 입력. 물리 방향키(keydown)와 아래 터치 방향패드가 모두 이 함수를 공유한다.
+function handleSequenceDirection(dir){
+  if (!(miniGameActive && miniGame && miniGame.type==='sequence')) return;
+  const expected = miniGame.sequence[miniGame.progress];
+  if (dir === expected) miniGame.progress++;
+  else miniGame.mistakeFlash = 12;
+}
+
+const touchActionBtn = document.getElementById('touchActionBtn');
+touchActionBtn.addEventListener('pointerdown', e => { e.preventDefault(); tryInteract(); });
+
+const touchRunBtn = document.getElementById('touchRunBtn');
+touchRunBtn.addEventListener('click', () => {
+  touchRunEnabled = !touchRunEnabled;
+  touchRunBtn.classList.toggle('on', touchRunEnabled);
+  touchRunBtn.setAttribute('aria-pressed', touchRunEnabled ? 'true' : 'false');
+});
+
+const touchDirPad = document.getElementById('touchDirPad');
+touchDirPad.querySelectorAll('.dirBtn').forEach(btn => {
+  const dir = btn.dataset.dir;
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); handleSequenceDirection(dir); });
+});
+
+const hudShopBtn = document.getElementById('hudShopBtn');
+hudShopBtn.addEventListener('click', toggleShop);
+
+const invSlotsBtn = document.getElementById('invSlots');
+invSlotsBtn.addEventListener('click', switchActiveSlot);
+
+// 스테이션 메뉴를 캔버스 그림 대신 실제 버튼으로 렌더링(터치로 탭 가능 + 스크린리더로도 읽힘)
+const stationMenuOverlayEl = document.getElementById('stationMenuOverlay');
+const stationMenuListEl = document.getElementById('stationMenuList');
+const stationMenuCancelBtn = document.getElementById('stationMenuCancelBtn');
+
+function renderStationMenuUI(){
+  stationMenuListEl.innerHTML = '';
+  currentStationMenu.forEach(m => {
+    const owned = stock[m.ingredient] > 0;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.disabled = !owned;
+    const iconHtml = (m.iconType==='image' && m.iconImg) ? `<img src="${m.iconImg.src}" alt="">` : (m.emoji ? m.emoji+' ' : '');
+    btn.innerHTML = `${iconHtml}${m.label}${owned?'':' (재료없음)'}`;
+    btn.addEventListener('click', () => selectMenuItem(m.id));
+    stationMenuListEl.appendChild(btn);
+  });
+  stationMenuOverlayEl.classList.add('open');
+  const firstBtn = stationMenuListEl.querySelector('button:not(:disabled)') || stationMenuListEl.querySelector('button');
+  if (firstBtn) firstBtn.focus();
+}
+function closeStationMenuUI(){ stationMenuOverlayEl.classList.remove('open'); }
+stationMenuCancelBtn.addEventListener('click', () => {
+  menuOpen = false;
+  closeStationMenuUI();
+  setMsg('취소했어요.');
+});
 
 // ============ 손님 시스템 ============
 // preferredStations: 이 손님 유형이 선호하는 스테이션(있으면 그쪽 메뉴를 더 자주 주문). 완전 랜덤보다 손님 유형에 의미를 부여.
@@ -1224,7 +1318,8 @@ function startMiniGame(menuItem){
     const dirs = ['up','down','left','right'];
     const sequence = Array.from({length:seqLen}, ()=>dirs[Math.floor(Math.random()*4)]);
     miniGame = { type:'sequence', menuId:menuItem.id, sequence, progress:0, doneTimer:0, mistakeFlash:0 };
-    setMsg('포장 중! 화면에 뜨는 방향키를 순서대로 눌러보세요.');
+    setMsg('포장 중! 화면에 뜨는 방향키를 순서대로 눌러보세요. (터치는 화면의 방향 버튼)');
+    touchDirPad.classList.add('open');
   } else if (station==='wok') {
     miniGame = { type:'stir', menuId:menuItem.id, heat:50, target:[50,90], stirGauge:0, timeLeft:420, phase:'running', doneTimer:0 }; // 난이도 하락: 목표구간 확대, 제한시간 연장
     setMsg('스페이스를 연타해서 화력을 목표 구간(초록)에 유지하세요!');
@@ -1253,6 +1348,7 @@ function finishMiniGame(menuId){
   setMsg(`${label} 완성! 손님에게 가져다주세요.`);
   miniGameActive=false;
   miniGame=null;
+  touchDirPad.classList.remove('open');
   if (tutorialActive && tutorialStep===2) {
     tutorialStep = 3;
     setTutorialBanner('완성했어요! 손님 테이블로 가서 스페이스로 서빙해보세요.');
@@ -1282,7 +1378,7 @@ function updateMiniGame(){
     if (g.phase==='blending') {
       g.blendProgress += 1.2;
       if (g.blendProgress>=g.blendTarget) {
-        if (g.cyclesLeft>0) { g.phase='frozen'; g.shakeGauge=0; g.freezeTimer=0; }
+        if (g.cyclesLeft>0) { g.phase='frozen'; g.shakeGauge=0; g.freezeTimer=0; setMsg('멈췄어요! 행동 버튼(스페이스)을 연타해서 흔드세요!'); }
         else { g.phase='done'; g.doneTimer=0; }
       }
     } else if (g.phase==='frozen') {
@@ -1366,14 +1462,15 @@ function ingredientUnlockLv(key){
 }
 
 function toggleShop(){ shopOpen ? closeShop() : openShop(); }
-function openShop(){ shopOpen=true; shopOverlay.classList.add('open'); renderShop(); }
+function openShop(){ shopOpen=true; shopOverlay.classList.add('open'); renderShop(); shopOverlay.focus(); }
 function closeShop(){ shopOpen=false; shopOverlay.classList.remove('open'); }
 shopClose.addEventListener('click', closeShop);
 
 document.querySelectorAll('#shopTabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    document.querySelectorAll('#shopTabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('#shopTabs button').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
     shopTab = btn.dataset.tab;
     renderShop();
   });
@@ -1408,7 +1505,7 @@ function renderShop(){
       const price = idlePrice(item.price);
       const iconInfo = INGREDIENT_ICON[item.key];
       const iconHtml = (iconInfo.iconType==='image' && iconInfo.iconImg)
-        ? `<img src="${iconInfo.iconImg.src}" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px;">`
+        ? `<img src="${iconInfo.iconImg.src}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px;">`
         : (iconInfo.emoji ? iconInfo.emoji+' ' : '');
       const div = document.createElement('div');
       div.className = 'shopItem' + (locked?' locked':'') + (unlocked?' owned':'');
@@ -1900,29 +1997,6 @@ function drawPlayer(){
   // 들고 있는 아이템은 더 이상 머리 위에 흐리게 표시하지 않고, 캔버스 위쪽의 인벤토리 슬롯 UI(#invSlots)로 표시한다.
 }
 
-function drawMenuOverlay(){
-  if (!menuOpen) return;
-  const n = currentStationMenu.length;
-  const bw = 240, bh = 30+n*26+20;
-  const bx = 800/2-bw/2, by=520/2-bh/2;
-  ctx.fillStyle='rgba(20,15,10,0.95)'; ctx.fillRect(bx,by,bw,bh);
-  ctx.strokeStyle='#8a6d4f'; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
-  ctx.fillStyle='#f4e9d8'; ctx.font='13px monospace'; ctx.textAlign='left';
-  currentStationMenu.forEach((m,i)=>{
-    const owned = stock[m.ingredient]>0;
-    ctx.fillStyle = owned ? '#f4e9d8' : '#8a6d5a';
-    const rowY = by+26+i*26;
-    if (m.iconType==='image' && m.iconImg) {
-      drawMenuIcon(ctx, m, bx+22, rowY-4, 16);
-      ctx.fillText(`[${i+1}] ${m.label} ${owned?'':'(재료없음)'}`, bx+32, rowY);
-    } else {
-      ctx.fillText(`${m.emoji} [${i+1}] ${m.label} ${owned?'':'(재료없음)'}`, bx+14, rowY);
-    }
-  });
-  ctx.fillStyle='#c9b896'; ctx.font='11px monospace';
-  ctx.fillText('[ESC] 취소', bx+14, by+bh-10);
-}
-
 // hex 색상 문자열(#rrggbb)에 알파를 입힌 rgba() 문자열로 변환. MG_UI 색상은 테마에 따라 바뀌므로
 // 목표구간처럼 반투명하게 겹쳐 그려야 하는 곳에서 이 헬퍼로 매번 변환한다.
 function hexToRgba(hex, alpha){
@@ -2073,12 +2147,15 @@ function endDay(){
   deEarnings.textContent = dayEarnings + '원';
   deGoal.textContent = freeMode ? '—' : (cumulativeEarnings + ' / ' + CAMPAIGN_GOAL + '원 (누적)');
   deServed.textContent = dayServedCount + '명';
-  deResult.innerHTML = wageLog ? `<div style="color:#e8a04b;">${wageLog}</div>` : '';
+  // dayEndBox 배경은 var(--panel)이라 테마마다 밝기가 바뀐다 - 고정 색상 대신 panel 위에서
+  // 대비가 검증된 --accent/--bad를 써야 밝은 테마에서도 글자가 묻히지 않는다.
+  deResult.innerHTML = wageLog ? `<div style="color:var(--accent);">${wageLog}</div>` : '';
   if (!freeMode && day>=CAMPAIGN_DAYS && cumulativeEarnings<CAMPAIGN_GOAL) {
-    deResult.innerHTML += `<div style="color:#b0453f;margin-top:6px;">목표 기간이 끝났어요. 그래도 계속 운영해볼까요?</div>`;
+    deResult.innerHTML += `<div style="color:var(--bad);margin-top:6px;">목표 기간이 끝났어요. 그래도 계속 운영해볼까요?</div>`;
   }
   refreshHUD();
   dayEndOverlay.classList.add('open');
+  dayEndOverlay.focus();
 }
 
 deNextDay.addEventListener('click', ()=>{
@@ -2430,6 +2507,7 @@ function openSettings(){
   settingsOpen = true;
   settingsOverlay.classList.add('open');
   renderSettingsBody();
+  settingsOverlay.focus();
 }
 function closeSettings(){
   settingsOpen = false;
@@ -2440,8 +2518,9 @@ shopOpenSettingsBtn.addEventListener('click', () => { closeShop(); openSettings(
 
 settingsTabsEl.querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    settingsTabsEl.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    settingsTabsEl.querySelectorAll('button').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
     settingsCurrentChar = btn.dataset.char;
     renderSettingsBody();
   });
@@ -2520,7 +2599,7 @@ function renderSettingsBody(){
       settingsUploadArea.appendChild(row);
     });
   } else {
-    settingsUploadArea.innerHTML = '<div style="color:#8a7a6a;">기본 도트 캐릭터를 사용해요.</div>';
+    settingsUploadArea.innerHTML = '<div style="color:var(--textDimOnDark);">기본 도트 캐릭터를 사용해요.</div>';
   }
 
   drawSettingsPreview();
@@ -2542,7 +2621,7 @@ function renderCustomerSettingsBody(){
   if (customerCustom.mode==='none') {
     typeTabs.style.display = 'none';
     editArea.style.display = 'none';
-    settingsUploadArea.innerHTML = '<div style="color:#8a7a6a;">모든 손님이 기본 도트 그림으로 나와요.</div>';
+    settingsUploadArea.innerHTML = '<div style="color:var(--textDimOnDark);">모든 손님이 기본 도트 그림으로 나와요.</div>';
     drawCustomerPreview(null);
     return;
   }
@@ -2564,6 +2643,8 @@ function renderCustomerSettingsBody(){
     const btn = document.createElement('button');
     btn.textContent = type.name;
     btn.className = idx===customerEditTypeIndex ? 'active' : '';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', idx===customerEditTypeIndex ? 'true' : 'false');
     btn.addEventListener('click', ()=>{ customerEditTypeIndex = idx; renderCustomerSettingsBody(); });
     typeTabs.appendChild(btn);
   });
@@ -2682,6 +2763,7 @@ let tutorialChoicePending = false; // 튜토리얼 선택지가 떠 있는 동�
 function showTutorialChoice(){
   tutorialChoicePending = true;
   tutorialChoiceOverlay.classList.add('open');
+  tutorialChoiceOverlay.focus();
 }
 function hideTutorialChoice(){
   tutorialChoicePending = false;
@@ -2750,7 +2832,7 @@ const modeChoiceOverlay = document.getElementById('modeChoiceOverlay');
 const modeNormalBtn = document.getElementById('modeNormal');
 const modeIdleBtn = document.getElementById('modeIdle');
 
-function showModeChoice(){ modeChoiceOverlay.classList.add('open'); }
+function showModeChoice(){ modeChoiceOverlay.classList.add('open'); modeChoiceOverlay.focus(); }
 function hideModeChoice(){ modeChoiceOverlay.classList.remove('open'); }
 
 // 새 게임 시작(초기 상태로 리셋 후 지정한 모드로 진입). 캐릭터 커스텀 이미지는 유지한다(요청사항).
@@ -2804,7 +2886,7 @@ const titleLoadGameBtn = document.getElementById('titleLoadGame');
 let titleActive = true;
 
 function hideTitle(){ titleActive = false; titleOverlay.classList.add('hidden'); }
-function showTitle(){ titleActive = true; titleOverlay.classList.remove('hidden'); }
+function showTitle(){ titleActive = true; titleOverlay.classList.remove('hidden'); titleOverlay.focus(); }
 
 titleNewGameBtn.addEventListener('click', () => {
   hideTitle();
@@ -2876,6 +2958,7 @@ async function openSlotOverlay(purpose, preloadedSlots){
     slotListEl.appendChild(row);
   }
   slotOverlay.classList.add('open');
+  slotOverlay.focus();
 }
 function closeSlotOverlay(){ slotOverlay.classList.remove('open'); }
 slotBackBtn.addEventListener('click', closeSlotOverlay);
@@ -2893,8 +2976,9 @@ const settingsResetCharBtn = document.getElementById('settingsResetChar');
 
 settingsMainTabsEl.querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    settingsMainTabsEl.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    settingsMainTabsEl.querySelectorAll('button').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
     const panel = btn.dataset.panel;
     settingsCharPanel.style.display = panel==='character' ? '' : 'none';
     settingsMenuPanel.style.display = panel==='menu' ? '' : 'none';
@@ -2985,15 +3069,16 @@ let menuCustomCurrentStation = 'espresso';
 
 menuCustomStationTabsEl.querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    menuCustomStationTabsEl.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    menuCustomStationTabsEl.querySelectorAll('button').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
     menuCustomCurrentStation = btn.dataset.station;
     renderMenuCustomPanel();
   });
 });
 
 function iconPreviewHtml(m){
-  if (m.iconType==='image' && m.iconImg) return `<img src="${m.iconImg.src}">`;
+  if (m.iconType==='image' && m.iconImg) return `<img src="${m.iconImg.src}" alt="">`;
   return m.emoji || '';
 }
 
@@ -3089,10 +3174,13 @@ function renderThemeSwatches(){
   const wrap = document.getElementById('themeSwatches');
   wrap.innerHTML = '';
   Object.entries(THEMES).forEach(([id, theme])=>{
-    const sw = document.createElement('div');
+    const sw = document.createElement('button');
+    sw.type = 'button';
     sw.className = 'themeSwatch' + (currentTheme===id ? ' active' : '');
     sw.style.background = theme.swatch;
     sw.title = theme.label;
+    sw.setAttribute('aria-label', `${theme.label} 테마`);
+    sw.setAttribute('aria-pressed', currentTheme===id ? 'true' : 'false');
     sw.addEventListener('click', ()=>{
       applyTheme(id);
       renderThemeSwatches();
@@ -3184,6 +3272,7 @@ const modeChangeConfirmNoBtn = document.getElementById('modeChangeConfirmNo');
 
 settingsChangeModeBtn.addEventListener('click', ()=>{
   modeChangeConfirmOverlay.classList.add('open');
+  modeChangeConfirmOverlay.focus();
 });
 modeChangeConfirmNoBtn.addEventListener('click', ()=>{
   modeChangeConfirmOverlay.classList.remove('open');
@@ -3219,8 +3308,7 @@ function gameLoop(){
   activeTables().forEach(drawTable);
   drawStaffCharacters();
   drawPlayer();
-  drawUnopenedPreview(); // 미개방 구역 오버레이는 캐릭터/스테이션 위, 메뉴창 아래에 그려서 확실히 덮는다
-  drawMenuOverlay();
+  drawUnopenedPreview(); // 미개방 구역 오버레이는 캐릭터/스테이션 위에 그려서 확실히 덮는다
   drawMiniGameOverlay();
 
   if (dayOpen) refreshHUD(); // 타이머 표시를 매 프레임 갱신
@@ -3229,7 +3317,11 @@ function gameLoop(){
 }
 
 refreshHUD();
-document.getElementById('msg').textContent = `방향키/WASD 이동(Shift로 달리기, Lv.${RUN_UNLOCK_LEVEL}부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기`;
+// 터치 기기(hover 없음)에서는 키보드 안내 대신 화면 조작법을 안내한다
+const isTouchDevice = window.matchMedia('(hover: none)').matches;
+document.getElementById('msg').textContent = isTouchDevice
+  ? `화면을 터치한 곳으로 이동 · ✋ 행동 버튼으로 상호작용/미니게임 조작 · 아이템칸 터치로 전환 · 🛒 버튼으로 상점 열기`
+  : `방향키/WASD 이동(Shift로 달리기, Lv.${RUN_UNLOCK_LEVEL}부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기`;
 
 // ============ 게임 시작 흐름 ============
 // 자동 불러오기는 하지 않는다. 항상 타이틀 화면에서 "새 게임" 또는 "이어하기"를 선택하게 한다.

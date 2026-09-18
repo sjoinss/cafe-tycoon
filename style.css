@@ -14,10 +14,21 @@
     --accent2: #f0c96a;
     --good: #6fae7a;
     --bad: #d97a70;
+    --accentFill: #e8b04b;
+    --goodFill: #498253;
+    --badFill: #cb493c;
     --floor1: #8a6a4a;
     --floor2: #7c5e40;
     --radius: 14px;
     --radiusSm: 9px;
+
+    /* 설정창/상점/타이틀 화면/대사창처럼 테마와 무관하게 항상 어두운 반투명 배경(rgba(20,17,14,..))
+       위에 직접 놓이는 글자용 색상. 테마가 바뀌어도 이 배경은 계속 어둡기 때문에 값을 고정한다. */
+    --accentOnDark: #e8b04b;
+    --accent2OnDark: #f0c96a;
+    --textOnDark: #f4ece0;
+    --textDimOnDark: #cabfa9;
+    --goodOnDark: #89bd92;
   }
 
   * { font-family: 'Trebuchet MS', 'Segoe UI', 'Malgun Gothic', sans-serif; }
@@ -28,20 +39,24 @@
     min-height:100vh;
     color: var(--text);
   }
-  #gameArea { display:flex; gap:14px; align-items:stretch; }
+  #gameArea { display:flex; gap:14px; align-items:stretch; max-width:100%; }
   #wrap {
     position:relative;
+    width: min(800px, calc(100vw - 32px));
     border: 5px solid var(--borderStrong);
     border-radius: var(--radius);
     box-shadow: 0 8px 26px rgba(0,0,0,0.35);
     background: var(--panel2);
     overflow:hidden;
+    flex-shrink:0;
   }
   canvas {
     display:block;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     border-radius: calc(var(--radius) - 4px);
+    width:100%; height:auto; /* 컨테이너(#wrap) 폭에 맞춰 비율 유지하며 축소 - 반응형 대응 */
+    touch-action: none; /* 캔버스를 터치로 드래그해도 페이지가 스크롤되지 않게(탭-이동 제스처 보호) */
   }
 
   /* ============ 플레이어 인벤토리(아이템 2칸) - 게임 화면 위쪽에 오버레이 ============ */
@@ -59,7 +74,19 @@
   }
   #invSlots {
     display:flex; gap:6px; align-items:center;
+    background:none; border:none; padding:0; margin:0; cursor:pointer; font-family:inherit;
   }
+  #invSlots:hover .invSlot { border-color: var(--accent2); }
+
+  .keyHint {
+    font-size:10px; opacity:0.75; font-weight:normal;
+  }
+  #hudShopBtn {
+    width:100%; background: var(--panel2); color: var(--text); border:2px solid var(--border);
+    border-radius: var(--radiusSm); padding:8px 6px; cursor:pointer; font-family:inherit;
+    font-size:13px; font-weight:bold;
+  }
+  #hudShopBtn:hover { border-color: var(--accent); }
   #invSlots .swapArrow { font-size:16px; color: var(--textDim); transition: color .15s, transform .15s; }
   #invSlots .swapArrow.pulse { color: var(--accent); transform: scale(1.3); }
   #invSlots .invSlot {
@@ -117,7 +144,7 @@
     display:none;
     z-index:20;
   }
-  #dialogue .name { color: var(--accent); font-weight:bold; margin-bottom:4px; font-size:13px; }
+  #dialogue .name { color: var(--accentOnDark); font-weight:bold; margin-bottom:4px; font-size:13px; }
 
   #shopOverlay {
     position:absolute; inset:0; background: rgba(20,17,14,0.9);
@@ -125,7 +152,7 @@
     border-radius: calc(var(--radius) - 4px);
   }
   #shopOverlay.open { display:block; }
-  #shopOverlay h2 { color: var(--accent); font-size:16px; margin-bottom:12px; }
+  #shopOverlay h2 { color: var(--accentOnDark); font-size:16px; margin-bottom:12px; }
   .shopGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .shopItem {
     background: var(--panel); border:2px solid var(--border); border-radius: var(--radiusSm);
@@ -134,18 +161,18 @@
   .shopItem .name { font-weight:bold; color: var(--accent2); margin-bottom:4px; }
   .shopItem .desc { color: var(--textDim); font-size:11px; margin-bottom:6px; min-height:28px;}
   .shopItem button {
-    background: var(--good); color:#fff; border:none; padding:6px 12px;
+    background: var(--goodFill); color:#fff; border:none; padding:6px 12px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:11px; font-weight:bold;
   }
   .shopItem button:disabled { background:#8a8478; cursor:not-allowed; opacity:0.6; }
   .shopItem.locked { opacity:0.5; }
   .shopItem.owned .name { color: var(--good); }
   #shopClose {
-    position:absolute; top:16px; right:20px; background: var(--bad); color:#fff;
+    position:absolute; top:16px; right:20px; background: var(--badFill); color:#fff;
     border:none; padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit; font-weight:bold;
   }
   #shopOpenSettings {
-    position:absolute; top:16px; right:130px; background:#7a92b8; color:#fff;
+    position:absolute; top:16px; right:130px; background:#4d6f96; color:#fff;
     border:none; padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
   #shopTabs { display:flex; gap:6px; margin-bottom:14px; }
@@ -153,7 +180,7 @@
     background: var(--panel); color: var(--textDim); border:2px solid var(--border); padding:7px 16px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
-  #shopTabs button.active { background: var(--accent); color:#2a2018; }
+  #shopTabs button.active { background: var(--accentFill); color:#2a2018; }
 
   #dayEndOverlay {
     position:absolute; inset:0; background: rgba(20,17,14,0.92);
@@ -162,7 +189,7 @@
   #dayEndOverlay.open { display:flex; }
   #dayEndBox {
     background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
-    padding:24px 32px; width:320px; color: var(--text);
+    padding:24px 32px; width:min(320px, 92vw); color: var(--text);
   }
   #dayEndBox h2 { color: var(--accent); font-size:18px; margin-bottom:16px; text-align:center; }
   #dayEndBox .stat-row {
@@ -172,7 +199,7 @@
   #dayEndBox .stat-row span:last-child { color: var(--text); font-weight:bold; }
   #deResult { margin:14px 0; text-align:center; font-size:13px; min-height:20px; }
   #deNextDay {
-    width:100%; background: var(--good); color:#fff; border:none; padding:11px;
+    width:100%; background: var(--goodFill); color:#fff; border:none; padding:11px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:13px; margin-top:6px; font-weight:bold;
   }
 
@@ -183,7 +210,7 @@
   #tutorialChoiceOverlay.open { display:flex; }
   #tutorialChoiceBox {
     background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
-    padding:24px 28px; width:320px; color: var(--text); text-align:center;
+    padding:24px 28px; width:min(320px, 92vw); color: var(--text); text-align:center;
   }
   #tutorialChoiceBox h2 { color: var(--accent); font-size:16px; margin-bottom:10px; }
   #tutorialChoiceBox p { color: var(--textDim); font-size:12px; margin-bottom:16px; line-height:1.5; }
@@ -192,12 +219,12 @@
     padding:11px; border:none; border-radius:20px; cursor:pointer;
     font-family:inherit; font-size:13px; font-weight:bold;
   }
-  #tutorialYes { background: var(--good); color:#fff; }
+  #tutorialYes { background: var(--goodFill); color:#fff; }
   #tutorialNo { background: var(--panel2); color: var(--textDim); }
 
   #tutorialBanner {
     position:absolute; top:12px; left:50%; transform:translateX(-50%);
-    background: var(--accent); color:#3a2a10; font-weight:bold;
+    background: var(--accentFill); color:#3a2a10; font-weight:bold;
     padding:9px 20px; border-radius:20px; font-size:13px;
     display:none; z-index:25; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,0.3);
   }
@@ -210,7 +237,7 @@
   #modeChoiceOverlay.open { display:flex; }
   #modeChoiceBox {
     background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
-    padding:28px 30px; width:420px; color: var(--text); text-align:center;
+    padding:28px 30px; width:min(420px, 92vw); color: var(--text); text-align:center;
   }
   #modeChoiceBox h2 { color: var(--accent); font-size:18px; margin-bottom:18px; }
   #modeChoiceBtns { display:flex; flex-direction:column; gap:12px; }
@@ -228,9 +255,9 @@
     display:none; z-index:55; padding:24px; overflow-y:auto;
   }
   #settingsOverlay.open { display:block; }
-  #settingsOverlay h2 { color: var(--accent); font-size:16px; margin-bottom:14px; }
+  #settingsOverlay h2 { color: var(--accentOnDark); font-size:16px; margin-bottom:14px; }
   #settingsClose {
-    position:absolute; top:16px; right:20px; background: var(--bad); color:#fff;
+    position:absolute; top:16px; right:20px; background: var(--badFill); color:#fff;
     border:none; padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit; font-weight:bold;
   }
   #settingsTabs { display:flex; gap:6px; margin-bottom:16px; }
@@ -238,7 +265,7 @@
     background: var(--panel); color: var(--textDim); border:2px solid var(--border); padding:7px 16px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
-  #settingsTabs button.active { background: var(--accent); color:#2a2018; }
+  #settingsTabs button.active { background: var(--accentFill); color:#2a2018; }
   #settingsBody { display:flex; gap:20px; flex-wrap:wrap; }
 
   #customerTypeTabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
@@ -246,15 +273,15 @@
     background: var(--panel); color: var(--textDim); border:2px solid var(--border); padding:6px 14px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
-  #customerTypeTabs button.active { background: var(--accent); color:#2a2018; }
-  #customerTypeEditArea { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; color: var(--text); font-size:12px; min-width:280px; }
+  #customerTypeTabs button.active { background: var(--accentFill); color:#2a2018; }
+  #customerTypeEditArea { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; color: var(--textOnDark); font-size:12px; min-width:280px; }
   #customerTypeEditArea label { display:flex; align-items:center; gap:6px; }
   #customerTypeEditArea input[type=text] { background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-family:inherit; width:110px; }
   #customerTypeEditArea .prefStationChecks { display:flex; gap:6px; flex-wrap:wrap; }
-  #settingsUploadArea { flex:1; min-width:260px; color: var(--textDim); font-size:12px; }
+  #settingsUploadArea { flex:1; min-width:260px; color: var(--textDimOnDark); font-size:12px; }
   #settingsUploadArea .uploadRow { margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  #settingsUploadArea .uploadRow > label:first-child { min-width:70px; color: var(--accent2); }
-  #settingsUploadArea .thumbStatus { font-size:11px; color: var(--good); }
+  #settingsUploadArea .uploadRow > label:first-child { min-width:70px; color: var(--accent2OnDark); }
+  #settingsUploadArea .thumbStatus { font-size:11px; color: var(--goodOnDark); }
 
   /* ============ 이미지 드롭존: 클릭/드래그앤드롭으로 이미지 업로드하는 카드형 버튼 ============ */
   .dropzone {
@@ -286,7 +313,7 @@
     background: var(--panel2);
   }
   .dropzone .dzBadge {
-    position:absolute; bottom:3px; right:3px; background: var(--good); color:#fff;
+    position:absolute; bottom:3px; right:3px; background: var(--goodFill); color:#fff;
     font-size:9px; line-height:1; padding:3px 5px; border-radius:8px; font-weight:bold;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   }
@@ -315,8 +342,11 @@
     border-color: var(--accent); background: var(--accent);
     box-shadow: inset 0 0 0 3px var(--panel2);
   }
+  /* radioChip은 설정창의 어두운 반투명 배경(rgba(20,17,14,..)) 위에 직접 놓이고, 체크 상태에서는
+     그 배경이 그대로 비치는 반투명 강조색을 덧씌우는 구조라 실제로는 항상 어두운 배경이 유지된다.
+     그래서 글자색은 테마별 --text(밝은 테마에서는 어두운 색)가 아니라 --textOnDark를 써야 한다. */
   .radioChip:has(input:checked), .radioChip.checkedChip {
-    border-color: var(--accent); background: rgba(232,176,75,0.14); color: var(--text);
+    border-color: var(--accent); background: rgba(232,176,75,0.14); color: var(--textOnDark);
   }
 
   #settingsPreview {
@@ -325,17 +355,17 @@
   }
   #settingsPreview .previewLabel { color: var(--textDim); font-size:11px; margin-bottom:6px; }
   #previewCanvas { background: var(--panel2); border-radius: var(--radiusSm); }
-  .settingsHint { margin-top:18px; color: var(--textDim); opacity:0.8; font-size:11px; line-height:1.5; }
+  .settingsHint { margin-top:18px; color: var(--textDimOnDark); opacity:0.8; font-size:11px; line-height:1.5; }
 
   #settingsMainTabs { display:flex; gap:6px; margin-bottom:16px; }
   #settingsMainTabs button {
     background: var(--panel); color: var(--textDim); border:2px solid var(--border); padding:8px 18px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
-  #settingsMainTabs button.active { background: var(--accent); color:#2a2018; }
+  #settingsMainTabs button.active { background: var(--accentFill); color:#2a2018; }
 
   #settingsResetChar {
-    margin-top:14px; background: var(--bad); color:#fff; border:none; padding:9px 16px;
+    margin-top:14px; background: var(--badFill); color:#fff; border:none; padding:9px 16px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
 
@@ -344,7 +374,7 @@
     background: var(--panel); color: var(--textDim); border:2px solid var(--border); padding:7px 16px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px;
   }
-  #menuCustomStationTabs button.active { background: var(--accent); color:#2a2018; }
+  #menuCustomStationTabs button.active { background: var(--accentFill); color:#2a2018; }
   #menuCustomList { display:flex; flex-direction:column; gap:10px; max-width:560px; }
   .menuCustomRow {
     display:flex; align-items:center; gap:10px; background: var(--panel); border:2px solid var(--border);
@@ -361,14 +391,14 @@
   .menuCustomRow select { background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-family:inherit; }
   .menuCustomRow input[type=text] { width:60px; background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-family:inherit; }
   #settingsResetMenu {
-    margin-top:14px; background: var(--bad); color:#fff; border:none; padding:9px 16px;
+    margin-top:14px; background: var(--badFill); color:#fff; border:none; padding:9px 16px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
 
-  .gamePanelRow { margin-bottom:24px; color: var(--text); }
-  .gamePanelRow h3 { font-size:13px; color: var(--accent); margin-bottom:10px; }
+  .gamePanelRow { margin-bottom:24px; color: var(--textOnDark); }
+  .gamePanelRow h3 { font-size:13px; color: var(--accentOnDark); margin-bottom:10px; }
   #settingsChangeMode {
-    background: var(--bad); color:#fff; border:none; padding:9px 18px;
+    background: var(--badFill); color:#fff; border:none; padding:9px 18px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
   #saveSlotList { display:flex; flex-direction:column; gap:8px; max-width:480px; }
@@ -380,10 +410,10 @@
   .saveSlotRow .slotInfo { flex:1; }
   .saveSlotRow .slotInfo .slotTitle { color: var(--accent2); font-weight:bold; margin-bottom:2px; }
   .saveSlotRow button {
-    background: var(--good); color:#fff; border:none; padding:7px 14px;
+    background: var(--goodFill); color:#fff; border:none; padding:7px 14px;
     border-radius:20px; cursor:pointer; font-family:inherit; font-size:11px; margin-left:6px; font-weight:bold;
   }
-  .saveSlotRow button.deleteBtn { background: var(--bad); }
+  .saveSlotRow button.deleteBtn { background: var(--badFill); }
 
   #titleOverlay {
     position:absolute; inset:0; background: rgba(20,17,14,0.97);
@@ -394,7 +424,7 @@
   #titleBox { text-align:center; color: var(--text); }
   #titleIconPreview { font-size:44px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; height:56px; }
   #titleIconPreview img { max-height:56px; max-width:120px; object-fit:contain; }
-  #titleBox h1 { font-size:26px; color: var(--accent); margin-bottom:24px; }
+  #titleBox h1 { font-size:26px; color: var(--accentOnDark); margin-bottom:24px; }
   #titleBtns { display:flex; flex-direction:column; gap:12px; width:240px; margin:0 auto; }
   #titleBtns button {
     padding:14px; border:2px solid var(--border); border-radius:20px; cursor:pointer;
@@ -409,7 +439,7 @@
   #slotOverlay.open { display:flex; }
   #slotBox {
     background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
-    padding:24px 28px; width:460px; color: var(--text); text-align:center;
+    padding:24px 28px; width:min(460px, 92vw); color: var(--text); text-align:center;
   }
   #slotBox h2 { color: var(--accent); font-size:16px; margin-bottom:16px; }
   #slotList { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
@@ -425,7 +455,7 @@
   #modeChangeConfirmOverlay.open { display:flex; }
   #modeChangeConfirmBox {
     background: var(--panel); border:3px solid var(--bad); border-radius: var(--radius);
-    padding:24px 28px; width:340px; color: var(--text); text-align:center;
+    padding:24px 28px; width:min(340px, 92vw); color: var(--text); text-align:center;
   }
   #modeChangeConfirmBox h2 { color: var(--bad); font-size:15px; margin-bottom:10px; }
   #modeChangeConfirmBox p { color: var(--textDim); font-size:12px; margin-bottom:16px; line-height:1.5; }
@@ -433,7 +463,7 @@
   #modeChangeConfirmBtns button {
     padding:10px 18px; border:none; border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
   }
-  #modeChangeConfirmYes { background: var(--bad); color:#fff; }
+  #modeChangeConfirmYes { background: var(--badFill); color:#fff; }
   #modeChangeConfirmNo { background: var(--panel2); color: var(--textDim); }
 
   /* ============ 테마 선택 ============ */
@@ -441,14 +471,112 @@
   .themeSwatch {
     width:40px; height:40px; border-radius:50%; cursor:pointer;
     border:3px solid transparent; transition: transform 0.1s, border-color 0.1s;
+    padding:0; font-family:inherit;
   }
   .themeSwatch:hover { transform: scale(1.08); }
   .themeSwatch.active { border-color: var(--accent); transform: scale(1.1); }
 
   /* ============ 시작화면/가게이름 커스텀 ============ */
   .titleCustomRow { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-  .titleCustomRow label { min-width:80px; color: var(--accent2); font-size:12px; }
+  .titleCustomRow label, .titleCustomRow .rowLabel { min-width:80px; color: var(--accent2OnDark); font-size:12px; }
   #titleNameInput {
     background: var(--panel2); color: var(--text); border:1px solid var(--border); border-radius:6px;
     padding:6px 10px; font-family:inherit; font-size:12px; width:180px;
+  }
+
+  /* ============ 접근성: 키보드 포커스 표시 ============ */
+  /* 커스텀 모양(appearance:none)을 쓰는 라디오/체크박스는 브라우저 기본 포커스 링이
+     잘 안 보일 수 있어 명시적으로 그려준다. 마우스 클릭 시엔 표시되지 않도록 :focus-visible 사용. */
+  button:focus-visible,
+  input:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .radioChip:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .dropzone:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ============ 스테이션 메뉴 선택 (터치/스크린리더 대응 - 캔버스 그림 대신 실제 버튼) ============ */
+  #stationMenuOverlay {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background: rgba(20,17,14,0.95); border:2px solid var(--border);
+    border-radius: var(--radiusSm); padding:16px 18px; min-width:240px;
+    display:none; z-index:24; text-align:center;
+  }
+  #stationMenuOverlay.open { display:block; }
+  #stationMenuHeading { color: var(--textOnDark); font-weight:bold; font-size:13px; margin-bottom:10px; }
+  #stationMenuList { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  #stationMenuList button {
+    display:flex; align-items:center; gap:6px; background: var(--panel); color: var(--text);
+    border:2px solid var(--border); border-radius: var(--radiusSm); padding:8px 12px;
+    cursor:pointer; font-family:inherit; font-size:13px; text-align:left;
+  }
+  #stationMenuList button:disabled { opacity:0.5; cursor:not-allowed; }
+  #stationMenuList button:not(:disabled):hover { border-color: var(--accent); }
+  #stationMenuList button img { width:18px; height:18px; object-fit:contain; }
+  #stationMenuCancelBtn {
+    background: var(--badFill); color:#fff; border:none; padding:7px 16px;
+    border-radius:20px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:bold;
+  }
+
+  /* ============ 터치 조작 UI (탭-이동은 캔버스에 직접, 나머지는 버튼으로) ============ */
+  /* 이 버튼들은 터치 기기 전용이 아니라, 스페이스/Shift처럼 키보드에 의존하던 조작을
+     마우스·스위치 등 키보드가 없는 입력 방식으로도 쓸 수 있게 하는 접근성 대체 수단이기도 하다. */
+  #touchControls {
+    position:absolute; right:calc(10px + env(safe-area-inset-right, 0px)); bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index:23; display:flex; flex-direction:column; align-items:flex-end; gap:8px;
+  }
+  #touchControls button {
+    background: rgba(20,17,14,0.72); color: var(--textOnDark); border:2px solid rgba(244,236,224,0.5);
+    border-radius:24px; cursor:pointer; font-family:inherit; font-weight:bold;
+    touch-action: manipulation;
+  }
+  #touchActionBtn { padding:14px 20px; font-size:15px; }
+  #touchRunBtn { padding:10px 14px; font-size:15px; display:none; }
+  #touchRunBtn.on { background: var(--accentFill); color:#2a2018; border-color: var(--accentFill); }
+  #touchRunBtn.show { display:inline-block; }
+
+  #touchDirPad {
+    position:absolute; left:calc(10px + env(safe-area-inset-left, 0px)); bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index:23; display:none;
+    grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px);
+    gap:4px;
+  }
+  #touchDirPad.open { display:grid; }
+  #touchDirPad .dirBtn {
+    background: rgba(20,17,14,0.72); color: var(--textOnDark); border:2px solid rgba(244,236,224,0.5);
+    border-radius:8px; font-size:16px; cursor:pointer; touch-action: manipulation;
+  }
+  #touchDirPad [data-dir="up"] { grid-column:2; grid-row:1; }
+  #touchDirPad [data-dir="left"] { grid-column:1; grid-row:2; }
+  #touchDirPad [data-dir="right"] { grid-column:3; grid-row:2; }
+  #touchDirPad [data-dir="down"] { grid-column:2; grid-row:2; }
+
+  /* ============ 반응형 레이아웃 (모바일/좁은 화면) ============ */
+  @media (max-width: 1000px) {
+    body { align-items:flex-start; padding: 12px 0 24px; }
+    /* 좌우 패딩 16px*2=32px는 #wrap/#msg의 calc(100vw - 32px)와 값을 맞춘 것 - 둘 중 하나만 바꾸면 어긋난다 */
+    #gameArea { flex-direction:column; align-items:center; width:100%; padding:0 16px; }
+    #hud {
+      width: min(800px, calc(100vw - 32px));
+      flex-direction:row; flex-wrap:wrap; gap:6px;
+    }
+    #hud .box { flex:1 1 100px; }
+    #invSlotsWrap { margin-top:0; flex:1 1 100%; order:99; }
+    #msg { width: min(800px, calc(100vw - 32px)); }
+  }
+
+  @media (max-width: 480px) {
+    #dayEndBox, #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox { padding:18px; }
+    #settingsOverlay, #shopOverlay { padding:16px; }
+    #settingsClose, #shopClose { top:10px; right:10px; padding:6px 12px; font-size:11px; }
+    #shopOpenSettings { top:10px; right:100px; padding:6px 10px; font-size:11px; }
+    #touchActionBtn { padding:12px 16px; font-size:13px; }
+    #touchDirPad { grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(2, 38px); }
   }

@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>카페 타이쿤 - 프로토타입 v2</title>
 <link rel="stylesheet" href="style.css">
 
@@ -18,23 +19,41 @@
     <div class="boxLabel">Lv.<span id="level">1</span> <span id="levelName">신입 사장</span></div>
     <div id="xpbarWrap"><div id="xpbar"><div id="xpfill"></div></div></div>
   </div>
+  <div class="box">
+    <button id="hudShopBtn" type="button">🛒 상점 <span class="keyHint">[P]</span></button>
+  </div>
   <div id="invSlotsWrap">
     <div id="invSlotsLabel"><span class="swapKey">Q</span> 아이템 전환 ⟷</div>
-    <div id="invSlots">
+    <button type="button" id="invSlots" aria-label="아이템 전환 (단축키 Q)">
       <div class="invSlot" id="invSlot0"></div>
-      <span class="swapArrow">⟷</span>
+      <span class="swapArrow" aria-hidden="true">⟷</span>
       <div class="invSlot" id="invSlot1"></div>
-    </div>
+    </button>
   </div>
 </div>
 
 <div id="wrap">
-  <canvas id="game" width="800" height="520"></canvas>
-  <div id="dialogue">
+  <canvas id="game" width="800" height="520" role="img" aria-label="카페 매장 화면. 캐릭터를 이동해 손님을 응대하는 게임 화면입니다.">이 브라우저는 캔버스(canvas)를 지원하지 않아 게임 화면을 표시할 수 없습니다. 최신 브라우저로 열어주세요.</canvas>
+  <div id="dialogue" role="status" aria-live="polite">
     <div class="name" id="dlgName"></div>
     <div id="dlgText"></div>
   </div>
-  <div id="titleOverlay">
+  <div id="stationMenuOverlay" role="dialog" aria-modal="false" aria-labelledby="stationMenuHeading">
+    <div id="stationMenuHeading">메뉴 선택</div>
+    <div id="stationMenuList"></div>
+    <button id="stationMenuCancelBtn" type="button">취소 [ESC]</button>
+  </div>
+  <div id="touchDirPad" role="group" aria-label="방향 입력">
+    <button type="button" class="dirBtn" data-dir="up" aria-label="위쪽 방향">▲</button>
+    <button type="button" class="dirBtn" data-dir="left" aria-label="왼쪽 방향">◀</button>
+    <button type="button" class="dirBtn" data-dir="right" aria-label="오른쪽 방향">▶</button>
+    <button type="button" class="dirBtn" data-dir="down" aria-label="아래쪽 방향">▼</button>
+  </div>
+  <div id="touchControls">
+    <button type="button" id="touchRunBtn" aria-pressed="false" aria-label="달리기 켜기/끄기">🏃</button>
+    <button type="button" id="touchActionBtn" aria-label="행동하기 (스페이스바와 동일 - 상호작용/대사 넘기기/미니게임 조작)">✋ 행동</button>
+  </div>
+  <div id="titleOverlay" role="dialog" aria-modal="true" aria-labelledby="titleGameName" tabindex="-1">
     <div id="titleBox">
       <div id="titleIconPreview">☕</div>
       <h1 id="titleGameName">카페 타이쿤</h1>
@@ -44,16 +63,16 @@
       </div>
     </div>
   </div>
-  <div id="slotOverlay">
+  <div id="slotOverlay" role="dialog" aria-modal="true" aria-labelledby="slotBoxTitle" tabindex="-1">
     <div id="slotBox">
       <h2 id="slotBoxTitle">슬롯 선택</h2>
       <div id="slotList"></div>
       <button id="slotBack">뒤로</button>
     </div>
   </div>
-  <div id="modeChangeConfirmOverlay">
+  <div id="modeChangeConfirmOverlay" role="dialog" aria-modal="true" aria-labelledby="modeChangeConfirmTitle" tabindex="-1">
     <div id="modeChangeConfirmBox">
-      <h2>⚠️ 모드를 변경할까요?</h2>
+      <h2 id="modeChangeConfirmTitle">⚠️ 모드를 변경할까요?</h2>
       <p>지금 진행 중인 내용은 저장하지 않으면 사라져요. 선택한 모드로 처음부터 새로 시작합니다.</p>
       <div id="modeChangeConfirmBtns">
         <button id="modeChangeConfirmYes">처음부터 시작</button>
@@ -61,9 +80,9 @@
       </div>
     </div>
   </div>
-  <div id="modeChoiceOverlay">
+  <div id="modeChoiceOverlay" role="dialog" aria-modal="true" aria-labelledby="modeChoiceTitle" tabindex="-1">
     <div id="modeChoiceBox">
-      <h2>어떤 모드로 시작할까요?</h2>
+      <h2 id="modeChoiceTitle">어떤 모드로 시작할까요?</h2>
       <div id="modeChoiceBtns">
         <button id="modeNormal">
           <div class="modeTitle">일반 모드</div>
@@ -76,9 +95,9 @@
       </div>
     </div>
   </div>
-  <div id="tutorialChoiceOverlay">
+  <div id="tutorialChoiceOverlay" role="dialog" aria-modal="true" aria-labelledby="tutorialChoiceTitle" tabindex="-1">
     <div id="tutorialChoiceBox">
-      <h2>튜토리얼을 진행할까요?</h2>
+      <h2 id="tutorialChoiceTitle">튜토리얼을 진행할까요?</h2>
       <p>손님 한 명을 가상으로 응대하면서 조작법을 배워요. (약 1분 소요)</p>
       <div id="tutorialChoiceBtns">
         <button id="tutorialYes">튜토리얼 시작</button>
@@ -86,23 +105,23 @@
       </div>
     </div>
   </div>
-  <div id="tutorialBanner"></div>
-  <div id="settingsOverlay">
+  <div id="tutorialBanner" role="status" aria-live="polite"></div>
+  <div id="settingsOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
     <button id="settingsClose">닫기 [ESC]</button>
-    <h2>⚙️ 설정</h2>
-    <div id="settingsMainTabs">
-      <button data-panel="character" class="active">캐릭터 커스텀</button>
-      <button data-panel="menu">메뉴 커스텀</button>
-      <button data-panel="decor">인테리어 커스텀</button>
-      <button data-panel="game">게임 관리</button>
+    <h2 id="settingsTitle">⚙️ 설정</h2>
+    <div id="settingsMainTabs" role="tablist" aria-label="설정 분류">
+      <button data-panel="character" class="active" role="tab" aria-selected="true">캐릭터 커스텀</button>
+      <button data-panel="menu" role="tab" aria-selected="false">메뉴 커스텀</button>
+      <button data-panel="decor" role="tab" aria-selected="false">인테리어 커스텀</button>
+      <button data-panel="game" role="tab" aria-selected="false">게임 관리</button>
     </div>
 
     <div id="settingsCharPanel">
-      <div id="settingsTabs">
-        <button data-char="player" class="active">플레이어</button>
-        <button data-char="cook">주방 알바</button>
-        <button data-char="server">서빙 알바</button>
-        <button data-char="customer">손님</button>
+      <div id="settingsTabs" role="tablist" aria-label="캐릭터 종류">
+        <button data-char="player" class="active" role="tab" aria-selected="true">플레이어</button>
+        <button data-char="cook" role="tab" aria-selected="false">주방 알바</button>
+        <button data-char="server" role="tab" aria-selected="false">서빙 알바</button>
+        <button data-char="customer" role="tab" aria-selected="false">손님</button>
       </div>
       <div id="settingsBody">
         <div class="radioChipGroup" id="charModeRow">
@@ -115,7 +134,7 @@
           <label class="radioChip"><input type="radio" name="customerCustomMode" value="unified"> 모든 손님 통일(이미지 하나 공유)</label>
           <label class="radioChip"><input type="radio" name="customerCustomMode" value="perType"> 유형별 개별 커스텀(이름·선호메뉴·이미지 각각)</label>
         </div>
-        <div id="customerTypeTabs" style="display:none;"></div>
+        <div id="customerTypeTabs" style="display:none;" role="tablist" aria-label="손님 유형"></div>
         <div id="customerTypeEditArea" style="display:none;"></div>
         <div id="settingsUploadArea"></div>
         <div id="settingsPreview">
@@ -128,11 +147,11 @@
     </div>
 
     <div id="settingsMenuPanel" style="display:none;">
-      <div id="menuCustomStationTabs">
-        <button data-station="espresso" class="active">커피</button>
-        <button data-station="smoothie">스무디</button>
-        <button data-station="dessert">디저트</button>
-        <button data-station="wok">분식</button>
+      <div id="menuCustomStationTabs" role="tablist" aria-label="메뉴 분류">
+        <button data-station="espresso" class="active" role="tab" aria-selected="true">커피</button>
+        <button data-station="smoothie" role="tab" aria-selected="false">스무디</button>
+        <button data-station="dessert" role="tab" aria-selected="false">디저트</button>
+        <button data-station="wok" role="tab" aria-selected="false">분식</button>
       </div>
       <div id="menuCustomList"></div>
       <button id="settingsResetMenu">메뉴 가격/레벨/아이콘 초기화</button>
@@ -166,16 +185,16 @@
       <div class="gamePanelRow">
         <h3>🏪 가게 이름 & 시작화면</h3>
         <div class="titleCustomRow">
-          <label>가게 이름</label>
+          <label for="titleNameInput">가게 이름</label>
           <input type="text" id="titleNameInput" maxlength="12" placeholder="카페 타이쿤">
         </div>
         <div class="titleCustomRow">
-          <label>아이콘</label>
+          <span class="rowLabel">아이콘</span>
           <label class="radioChip"><input type="radio" name="titleIconMode" value="emoji"> 텍스트/이모지</label>
-          <input type="text" id="titleIconTextInput" maxlength="4" placeholder="☕">
+          <input type="text" id="titleIconTextInput" maxlength="4" placeholder="☕" aria-label="아이콘 텍스트 또는 이모지">
         </div>
         <div class="titleCustomRow">
-          <label></label>
+          <span class="rowLabel" aria-hidden="true"></span>
           <label class="radioChip"><input type="radio" name="titleIconMode" value="image"> 이미지 파일</label>
           <span id="titleIconImageSlot"></span>
         </div>
@@ -191,18 +210,18 @@
       </div>
     </div>
   </div>
-  <div id="shopOverlay">
+  <div id="shopOverlay" role="dialog" aria-modal="true" aria-labelledby="shopTitle" tabindex="-1">
     <button id="shopClose">닫기 [ESC]</button>
     <button id="shopOpenSettings">⚙️ 캐릭터 설정</button>
-    <h2>🛒 재료·설비·알바 상점</h2>
-    <div id="shopTabs">
-      <button data-tab="ingredients" class="active">재료</button>
-      <button data-tab="stations">주방 설비</button>
-      <button data-tab="staff">알바 고용</button>
+    <h2 id="shopTitle">🛒 재료·설비·알바 상점</h2>
+    <div id="shopTabs" role="tablist" aria-label="상점 분류">
+      <button data-tab="ingredients" class="active" role="tab" aria-selected="true">재료</button>
+      <button data-tab="stations" role="tab" aria-selected="false">주방 설비</button>
+      <button data-tab="staff" role="tab" aria-selected="false">알바 고용</button>
     </div>
     <div class="shopGrid" id="shopGrid"></div>
   </div>
-  <div id="dayEndOverlay">
+  <div id="dayEndOverlay" role="dialog" aria-modal="true" aria-labelledby="dayEndTitle" tabindex="-1">
     <div id="dayEndBox">
       <h2 id="dayEndTitle">오늘 영업 종료!</h2>
       <div class="stat-row"><span>오늘 매출</span><span id="deEarnings">0원</span></div>
@@ -215,7 +234,7 @@
 </div>
 </div>
 
-<div id="msg">방향키/WASD 이동(Shift로 달리기, Lv.3부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기</div>
+<div id="msg" role="status" aria-live="polite">방향키/WASD 이동(Shift로 달리기, Lv.3부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기</div>
 
 <script src="script.js"></script>
 </body>
