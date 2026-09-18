@@ -959,22 +959,36 @@ function aiCheckCookingDone(){
   }
 }
 
-// ============ 모바일 카메라(확대/추적) ============
+// ============ 모바일 카메라(확대/추적) + 세로 캔버스 ============
 // 세로로 좁은 화면에서는 800x520 맵 전체가 다 보이면 캐릭터/설비가 너무 작아서 터치하기
 // 힘들다는 피드백이 있어, 좁고 세로로 긴 화면일 때만 카메라를 확대해 캐릭터 주변만 따라가며
-// 보여준다. 캔버스의 CSS 표시 크기/해상도는 그대로 두고 "그리는 내용"만 확대·이동시키는
-// 방식이라, 캔버스 위에 얹힌 DOM 오버레이(대사창/설정창 등)의 배치엔 전혀 영향이 없다.
+// 보여준다. 여기서 "확대율(zoom)"은 캐릭터/오브젝트가 화면에서 보이는 크기(가로 시야 폭)를
+// 결정하고, 이건 그대로 둔 채로 캔버스 자체의 세로 해상도만 최대(맵 전체 높이가 보이는 만큼)로
+// 키워서 "안의 확대율은 그대로, 창(틀) 자체만 세로로 길어지는" 효과를 낸다 - 세로로 긴 폰에서
+// 프레임 위아래로 남는 빈 공간을 줄이기 위함. 캔버스의 CSS 표시 크기는 항상 width:100%;height:auto로
+// 해상도 비율을 그대로 따라가므로, 여기서 canvas.height를 키우면 #wrap도 자동으로 더 길쭉해진다.
 const camera = { x:0, y:0, zoom:1 };
+const CANVAS_BASE_W = 800, CANVAS_BASE_H = 520; // 맵(월드) 크기 - COLS*TILE, ROWS*TILE과 동일, 해상도와는 별개 개념
+function isMobilePortrait(){
+  return window.innerWidth < 700 && window.innerWidth < window.innerHeight;
+}
 function computeCameraZoom(){
-  return (window.innerWidth < 700 && window.innerWidth < window.innerHeight) ? 1.7 : 1;
+  return isMobilePortrait() ? 1.7 : 1;
+}
+// 세로 좁은 화면일 때만 캔버스 세로 해상도를 "맵 전체 높이가 딱 맞게 보이는" 값까지 늘린다.
+// 가로 해상도(CANVAS_BASE_W)는 건드리지 않으므로 좌우 확대율(시야 폭)은 그대로 유지된다.
+function resizeCanvasForViewport(){
+  const targetH = isMobilePortrait() ? Math.round(CANVAS_BASE_H * computeCameraZoom()) : CANVAS_BASE_H;
+  if (canvas.height !== targetH) canvas.height = targetH; // 값이 실제로 바뀔 때만 대입(매 프레임 버퍼 리셋 방지)
+  if (canvas.width !== CANVAS_BASE_W) canvas.width = CANVAS_BASE_W;
 }
 function updateCamera(){
   camera.zoom = computeCameraZoom();
-  const viewW = 800/camera.zoom, viewH = 520/camera.zoom;
+  const viewW = canvas.width/camera.zoom, viewH = canvas.height/camera.zoom;
   const camX = (player.x+player.w/2) - viewW/2;
   const camY = (player.y+player.h/2) - viewH/2;
-  camera.x = Math.max(0, Math.min(800-viewW, camX));
-  camera.y = Math.max(0, Math.min(520-viewH, camY));
+  camera.x = Math.max(0, Math.min(CANVAS_BASE_W-viewW, camX));
+  camera.y = Math.max(0, Math.min(CANVAS_BASE_H-viewH, camY));
 }
 
 function updatePlayer(){
@@ -3494,7 +3508,8 @@ function gameLoop(){
     updateDayTimer();
   }
 
-  ctx.clearRect(0,0,800,520);
+  resizeCanvasForViewport();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
   updateCamera();
   ctx.save();
   ctx.scale(camera.zoom, camera.zoom);
