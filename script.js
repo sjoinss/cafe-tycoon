@@ -47,6 +47,15 @@ function applyTitleCustom(){
   } else {
     preview.textContent = gameTitleIcon.emoji || '☕';
   }
+
+  // 가게 이름을 정해도 시작화면에서만 보이던 것을, 게임 중에도 알아볼 수 있게 HUD 위쪽에도 표시한다.
+  document.getElementById('hudStoreNameText').textContent = gameTitleName || '카페 타이쿤';
+  const hudIcon = document.getElementById('hudStoreIcon');
+  if (gameTitleIcon.mode==='image' && gameTitleIcon.img) {
+    hudIcon.innerHTML = `<img src="${gameTitleIcon.img.src}" alt="">`;
+  } else {
+    hudIcon.textContent = gameTitleIcon.emoji || '☕';
+  }
 }
 
 // 테마/가게이름/아이콘은 "게임 진행 슬롯"과 별개로 전역 설정으로 저장한다(모든 슬롯에 공통 적용).
@@ -423,6 +432,7 @@ const PAL = {
   tableWood: '#9a7550',
   ovenDark:'#3a2a20', panMetal:'#9a9aa0',
   displayGlass:'rgba(200,220,255,0.25)',
+  bunnyPink:'#ffd3e0', bunnyPinkLight:'#fff0f4', bunnyBlush:'#ff9fb8',
 };
 
 // 미니게임 오버레이 UI(진행바 배경/테두리/텍스트 등)는 게임 오브젝트와 달리 "UI"이므로
@@ -1997,6 +2007,19 @@ function drawCustomer(t, cx, cy){
   if (!customDrawn) {
     // 커스텀 이미지가 없을 땐 각지고 못생긴 도트 사람 대신, 귀여운 토끼 이모지로 손님을 표시한다
     // (사용자 피드백: 손님 도트 그림이 못생겨 보임 -> 이미지 없을 때는 그냥 토끼 이모지로).
+    // 이모지 뒤에 흰 원판(스티커 느낌)을 깔아서 - 바닥색과 겹쳐 흐릿/반투명하게 보인다는 피드백과
+    // 배경과 비슷해 잘 안 보인다는 피드백을 함께 해결한다. globalAlpha도 확실히 1로 고정한다.
+    const r = custH*0.44;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+    ctx.beginPath();
+    ctx.arc(px, py-r*0.82, r, 0, Math.PI*2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.globalAlpha = 1;
     ctx.font = Math.round(custH*0.82)+'px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -2107,36 +2130,96 @@ function drawPlayer(){
   const customDrawn = drawCharacterAt(ctx, characterCustom.player, player.dir, player.moving, px+player.w/2-CHAR_TARGET_W/2, py+player.h-CHAR_TARGET_H, bob);
 
   if (!customDrawn) {
-    // 기본 도트 그림은 충돌 히트박스(player.w/h)와 무관하게 CHAR_TARGET_W/H 기준으로 커스텀 이미지와
+    // 기본 그림은 충돌 히트박스(player.w/h)와 무관하게 CHAR_TARGET_W/H 기준으로 커스텀 이미지와
     // 동일한 크기로 그려서, 캐릭터를 이미지로 바꿔도 크기가 훌쩍 달라 보이지 않게 한다.
     // 발밑 기준점(player.x+player.w/2, player.y+player.h)은 그대로 유지해 이동/충돌엔 영향 없음.
-    // 세로 배분: 머리 0~26% · 몸통(상의+앞치마) 24~66% · 다리 66~88%(나머지는 발밑 여백).
-    // 다리를 길게 잡으면 하체가 늘씬해 보이는 대신 캐릭터가 붕 뜬 듯한 인상을 줘서, 이번엔
-    // 다리 비중을 줄이고 그만큼 몸통을 키워 안정감 있고 다부진 실루엣으로 바꿨다.
     const dw = CHAR_TARGET_W, dh = CHAR_TARGET_H;
     const dLeft = px+player.w/2-dw/2, dTop = py+player.h-dh + bob;
-    const bodyW = dw*0.68; // 몸통 폭도 키워서 실루엣이 더 다부지게 보이게 한다
-    const bodyLeft = dLeft + (dw-bodyW)/2;
-
-    ctx.fillStyle=PAL.skin; ctx.fillRect(dLeft+dw*0.22, dTop+dh*0.24, dw*0.56, dh*0.02); // 목(살짝)
-    ctx.fillStyle=PAL.hairBrown; ctx.fillRect(dLeft+dw*0.08, dTop, dw*0.84, dh*0.15); // 머리
-    ctx.fillStyle=PAL.skin; ctx.fillRect(dLeft+dw*0.14, dTop+dh*0.11, dw*0.72, dh*0.16); // 얼굴
-    ctx.fillStyle=PAL.shirtBlue; ctx.fillRect(bodyLeft, dTop+dh*0.26, bodyW, dh*0.19); // 상의
-    ctx.fillStyle=PAL.apron; ctx.fillRect(bodyLeft, dTop+dh*0.43, bodyW, dh*0.23); // 앞치마
-    // 걷는 중이면 다리를 번갈아 앞뒤로 살짝 벌려서 걷는 느낌을 준다(animFrame 0~3 순환)
-    const legSwing = player.moving ? (player.animFrame%2===0 ? 1 : -1) * dh*0.01 : 0;
-    ctx.fillStyle=PAL.pantsBrown; ctx.fillRect(dLeft+dw*0.28, dTop+dh*0.66+legSwing, dw*0.18, dh*0.22); // 왼다리
-    ctx.fillStyle=PAL.pantsBrown; ctx.fillRect(dLeft+dw*0.54, dTop+dh*0.66-legSwing, dw*0.18, dh*0.22); // 오른다리
-
-    ctx.fillStyle=PAL.outline;
-    const eyeSz = Math.max(2.5, dw*0.06);
-    const eyeY = dTop+dh*0.17;
-    if (player.dir==='down') { ctx.fillRect(dLeft+dw*0.28,eyeY,eyeSz,eyeSz); ctx.fillRect(dLeft+dw*0.64,eyeY,eyeSz,eyeSz); }
-    else if (player.dir==='left') ctx.fillRect(dLeft+dw*0.24,eyeY,eyeSz,eyeSz);
-    else if (player.dir==='right') ctx.fillRect(dLeft+dw*0.68,eyeY,eyeSz,eyeSz);
+    // 걷는 중이면 발이 번갈아 좌우로 살짝 벌어져서 걷는 느낌을 준다(animFrame 0~3 순환)
+    const legSwing = player.moving ? (player.animFrame%2===0 ? 1 : -1) * dw*0.02 : 0;
+    drawBunnyCharacter(ctx, dLeft, dTop, dw, dh, player.dir, legSwing);
   }
 
   // 들고 있는 아이템은 더 이상 머리 위에 흐리게 표시하지 않고, 캔버스 위쪽의 인벤토리 슬롯 UI(#invSlots)로 표시한다.
+}
+
+// 기본(커스텀 이미지 없음) 캐릭터 그림 - 각지고 못생긴 사람 도트 대신, 치이카와st로 머리가 몸통보다
+// 큰 짧고 통통한 연분홍 토끼로 그린다. dLeft/dTop/dw/dh는 캐릭터가 차지하는 사각형(발밑=dTop+dh),
+// dir로 눈 위치를 살짝 옮겨 방향감을 주고, legSwing으로 걷는 중 발이 좌우로 벌어지는 정도를 준다.
+// 하루정산 화면의 통통 튀는 캐릭터에서도 그대로 재사용한다.
+function drawBunnyCharacter(targetCtx, dLeft, dTop, dw, dh, dir, legSwing){
+  legSwing = legSwing || 0;
+  const cx = dLeft + dw/2;
+  const bodyCx = cx, bodyCy = dTop + dh*0.74, bodyRx = dw*0.40, bodyRy = dh*0.24;
+  const headCx = cx, headCy = dTop + dh*0.40, headR = dw*0.46;
+  // 연분홍이 바닥색과 비슷해 잘 안 보인다는 피드백 - 색을 바꾸는 대신 흰 테두리를 둘러서
+  // 어떤 배경 위에서도 또렷하게 보이게 한다.
+  targetCtx.lineWidth = Math.max(1.5, dw*0.045);
+  targetCtx.strokeStyle = '#fff';
+
+  // 발(몸통 아래로 살짝 보이는 짧고 통통한 발)
+  targetCtx.fillStyle = PAL.bunnyPink;
+  targetCtx.beginPath();
+  targetCtx.ellipse(bodyCx-dw*0.16+legSwing, dTop+dh*0.92, dw*0.15, dh*0.05, 0, 0, Math.PI*2);
+  targetCtx.ellipse(bodyCx+dw*0.16-legSwing, dTop+dh*0.92, dw*0.15, dh*0.05, 0, 0, Math.PI*2);
+  targetCtx.fill();
+  targetCtx.stroke();
+
+  // 몸통(머리보다 작게 - 짧고 통통한 실루엣의 핵심)
+  targetCtx.beginPath();
+  targetCtx.ellipse(bodyCx, bodyCy, bodyRx, bodyRy, 0, 0, Math.PI*2);
+  targetCtx.fill();
+  targetCtx.stroke();
+
+  // 귀 - 바깥쪽은 몸통과 같은 연분홍, 안쪽은 더 밝은 속귀색
+  const earW = dw*0.18, earH = dh*0.36;
+  [-1,1].forEach(side=>{
+    targetCtx.save();
+    targetCtx.translate(headCx + side*headR*0.5, headCy - headR*0.78);
+    targetCtx.rotate(side*0.14);
+    targetCtx.fillStyle = PAL.bunnyPink;
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, -earH*0.32, earW/2, earH/2, 0, 0, Math.PI*2);
+    targetCtx.fill();
+    targetCtx.stroke();
+    targetCtx.fillStyle = PAL.bunnyPinkLight;
+    targetCtx.beginPath();
+    targetCtx.ellipse(0, -earH*0.24, earW*0.32, earH*0.34, 0, 0, Math.PI*2);
+    targetCtx.fill();
+    targetCtx.restore();
+  });
+
+  // 머리(몸통보다 큼직하게 - 치이카와 비율)
+  targetCtx.fillStyle = PAL.bunnyPink;
+  targetCtx.beginPath();
+  targetCtx.ellipse(headCx, headCy, headR, headR*0.92, 0, 0, Math.PI*2);
+  targetCtx.fill();
+  targetCtx.stroke();
+
+  // 볼터치
+  targetCtx.fillStyle = PAL.bunnyBlush;
+  targetCtx.globalAlpha = 0.55;
+  targetCtx.beginPath();
+  targetCtx.ellipse(headCx-headR*0.52, headCy+headR*0.2, headR*0.15, headR*0.1, 0, 0, Math.PI*2);
+  targetCtx.ellipse(headCx+headR*0.52, headCy+headR*0.2, headR*0.15, headR*0.1, 0, 0, Math.PI*2);
+  targetCtx.fill();
+  targetCtx.globalAlpha = 1;
+
+  // 눈/코 - 뒷모습(up)일 땐 생략하고, 좌우로 볼 때는 살짝 그쪽으로 몰아준다
+  if (dir !== 'up') {
+    const eyeOffsetX = dir==='left' ? -headR*0.2 : dir==='right' ? headR*0.2 : 0;
+    const eyeGap = headR*0.3;
+    const eyeY = headCy + headR*0.04;
+    targetCtx.fillStyle = PAL.outline;
+    targetCtx.beginPath();
+    targetCtx.ellipse(headCx-eyeGap+eyeOffsetX, eyeY, headR*0.07, headR*0.09, 0, 0, Math.PI*2);
+    targetCtx.ellipse(headCx+eyeGap+eyeOffsetX, eyeY, headR*0.07, headR*0.09, 0, 0, Math.PI*2);
+    targetCtx.fill();
+    targetCtx.fillStyle = PAL.bunnyBlush;
+    targetCtx.beginPath();
+    targetCtx.ellipse(headCx+eyeOffsetX, eyeY+headR*0.18, headR*0.05, headR*0.04, 0, 0, Math.PI*2);
+    targetCtx.fill();
+  }
 }
 
 // hex 색상 문자열(#rrggbb)에 알파를 입힌 rgba() 문자열로 변환. MG_UI 색상은 테마에 따라 바뀌므로
@@ -2294,7 +2377,7 @@ const dlgBox=document.getElementById('dialogue');
 const dlgName=document.getElementById('dlgName');
 const dlgText=document.getElementById('dlgText');
 let dialogueQueue=[]; let dialogueActive=false; let dialogueOnComplete=null;
-function showDialogue(lines, onComplete){ dialogueQueue=lines.slice(); dialogueActive=true; dialogueOnComplete=onComplete||null; nextDialogueLine(); dlgBox.style.display='block'; }
+function showDialogue(lines, onComplete){ dialogueQueue=lines.slice(); dialogueActive=true; dialogueOnComplete=onComplete||null; nextDialogueLine(); dlgBox.style.display='flex'; }
 function nextDialogueLine(){
   if (dialogueQueue.length===0) {
     dialogueActive=false; dlgBox.style.display='none';
@@ -2303,6 +2386,9 @@ function nextDialogueLine(){
   }
   const l=dialogueQueue.shift(); dlgName.textContent=l.name; dlgText.textContent=l.text;
 }
+// 대사창이 이제 캔버스 전체를 덮는 가운데 팝업이라, 캔버스 자체의 pointerdown 리스너로는 클릭이
+// 전달되지 않는다(팝업이 위에서 가로챔) - 팝업 아무 곳이나 눌러도 다음 줄로 넘어가게 별도로 연결한다.
+dlgBox.addEventListener('pointerdown', (e) => { e.preventDefault(); nextDialogueLine(); });
 
 // ============ 목표금액 달성(엔딩) 체크 ============
 function checkCampaignGoal(){
@@ -2331,11 +2417,92 @@ function showEnding(){
 // ============ 하루 진행 / 정산 ============
 const dayEndOverlay = document.getElementById('dayEndOverlay');
 const deEarnings = document.getElementById('deEarnings');
-const deGoal = document.getElementById('deGoal');
+const deRemain = document.getElementById('deRemain');
+const deGoalLine = document.getElementById('deGoalLine');
 const deServed = document.getElementById('deServed');
 const deResult = document.getElementById('deResult');
 const deTitle = document.getElementById('dayEndTitle');
 const deNextDay = document.getElementById('deNextDay');
+const deSaveBtn = document.getElementById('deSaveBtn');
+
+// hex(#rrggbb) <-> HSL 변환 - 하루정산 화면 배경색을 테마 강조색에서 뽑아내되 채도/명도를
+// 눈에 편한 범위로 눌러주기 위해 필요하다(색상환의 hue는 유지, 과한 채도/명도만 완화).
+function hexToHsl(hex){
+  hex = hex.replace('#','');
+  const r=parseInt(hex.substring(0,2),16)/255, g=parseInt(hex.substring(2,4),16)/255, b=parseInt(hex.substring(4,6),16)/255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b);
+  let h=0, s=0; const l=(max+min)/2;
+  if (max!==min) {
+    const d = max-min;
+    s = l>0.5 ? d/(2-max-min) : d/(max+min);
+    if (max===r) h=(g-b)/d+(g<b?6:0);
+    else if (max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  return { h:h*360, s:s*100, l:l*100 };
+}
+function hslToHex(h,s,l){
+  h/=360; s/=100; l/=100;
+  let r,g,b;
+  if (s===0) { r=g=b=l; }
+  else {
+    const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    const q = l<0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  const toHex = x => Math.round(x*255).toString(16).padStart(2,'0');
+  return '#'+toHex(r)+toHex(g)+toHex(b);
+}
+// 하루정산 화면 배경 - 테마의 강조색을 그대로 화면 전체에 쓰면 원색이라 눈이 아플 수 있어
+// 채도/명도를 중간대로 눌러 부드럽게 다듬고, 그 위에 얹을 글자색(흰/검정)을 명도 기준으로 고른다.
+function applyDayEndTheme(){
+  const theme = THEMES[currentTheme];
+  const base = theme.vars.accent2 || theme.vars.accent;
+  let { h, s, l } = hexToHsl(base);
+  s = Math.min(s, 55);
+  l = Math.max(40, Math.min(l, 62));
+  const bg = hslToHex(h, s, l);
+  const textColor = l >= 54 ? '#2a2018' : '#fff8f0';
+  dayEndOverlay.style.background = bg;
+  dayEndOverlay.style.setProperty('--deText', textColor);
+}
+
+// 하루정산 화면 가운데서 캐릭터가 통통 뛰는 애니메이션. 단순히 위아래로만 움직이지 않고,
+// 바닥에 닿을 땐 눌리듯 짧고 넓게(squash), 공중에 뜰 땐 길게 늘어나게(stretch) 해서
+// "세로가 줄었다가 튀어오르는" 탄력 있는 느낌을 준다.
+const dayEndCharCanvas = document.getElementById('dayEndCharCanvas');
+const dayEndCharCtx = dayEndCharCanvas.getContext('2d');
+let dayEndBounceRAF = null;
+function drawDayEndBounce(){
+  const w = dayEndCharCanvas.width, h = dayEndCharCanvas.height;
+  dayEndCharCtx.clearRect(0,0,w,h);
+  const period = 640; // ms, 한 번 통통 튀는 주기
+  const t = (performance.now() % period) / period;
+  const arc = Math.sin(t*Math.PI); // 0(바닥) -> 1(정점) -> 0(바닥)
+  const scaleY = 0.7 + 0.5*arc, scaleX = 1.3 - 0.5*arc;
+  const groundY = h - 16, jumpPx = h*0.22;
+  const footY = groundY - arc*jumpPx;
+
+  dayEndCharCtx.save();
+  dayEndCharCtx.globalAlpha = 0.28*(1-arc*0.5);
+  dayEndCharCtx.fillStyle = '#000';
+  dayEndCharCtx.beginPath();
+  dayEndCharCtx.ellipse(w/2, groundY+6, 22*(1-arc*0.3), 7*(1-arc*0.3), 0, 0, Math.PI*2);
+  dayEndCharCtx.fill();
+  dayEndCharCtx.restore();
+
+  const dw = Math.min(w*0.82, 76), dh = dw*1.35;
+  dayEndCharCtx.save();
+  dayEndCharCtx.translate(w/2, footY);
+  dayEndCharCtx.scale(scaleX, scaleY);
+  const customDrawn = drawCharacterAt(dayEndCharCtx, characterCustom.player, 'down', false, -dw/2, -dh, 0);
+  if (!customDrawn) drawBunnyCharacter(dayEndCharCtx, -dw/2, -dh, dw, dh, 'down', 0);
+  dayEndCharCtx.restore();
+
+  if (dayEndOverlay.classList.contains('open')) dayEndBounceRAF = requestAnimationFrame(drawDayEndBounce);
+}
 
 function updateDayTimer(){
   if (gameMode==='idle') return; // 방치형 모드는 하루/영업시간 개념이 없음
@@ -2351,23 +2518,29 @@ function endDay(){
   if (staff.cook.hired) { money -= STAFF_DEF.cook.dailyWage; wageLog += `주방 알바 일당 -${STAFF_DEF.cook.dailyWage}원  `; }
   if (staff.server.hired) { money -= STAFF_DEF.server.dailyWage; wageLog += `서빙 알바 일당 -${STAFF_DEF.server.dailyWage}원`; }
 
+  applyDayEndTheme();
   deTitle.textContent = freeMode ? `Day ${day} 영업 종료 (자유모드)` : `Day ${day} 영업 종료`;
+  if (freeMode) {
+    deGoalLine.textContent = '자유 모드로 운영 중이에요';
+  } else {
+    const remain = Math.max(0, CAMPAIGN_GOAL - cumulativeEarnings);
+    deGoalLine.textContent = remain>0 ? `목표까지 ${remain}원` : '목표 금액을 달성했어요!';
+  }
   deEarnings.textContent = dayEarnings + '원';
-  deGoal.textContent = freeMode ? '—' : (cumulativeEarnings + ' / ' + CAMPAIGN_GOAL + '원 (누적)');
   deServed.textContent = dayServedCount + '명';
-  // dayEndBox 배경은 var(--panel)이라 테마마다 밝기가 바뀐다 - 고정 색상 대신 panel 위에서
-  // 대비가 검증된 --accent/--bad를 써야 밝은 테마에서도 글자가 묻히지 않는다.
-  deResult.innerHTML = wageLog ? `<div style="color:var(--accent);">${wageLog}</div>` : '';
+  deResult.innerHTML = wageLog ? wageLog : '';
   if (!freeMode && day>=CAMPAIGN_DAYS && cumulativeEarnings<CAMPAIGN_GOAL) {
-    deResult.innerHTML += `<div style="color:var(--bad);margin-top:6px;">목표 기간이 끝났어요. 그래도 계속 운영해볼까요?</div>`;
+    deResult.innerHTML += `<div style="margin-top:4px;">⚠️ 목표 기간이 끝났어요. 그래도 계속 운영해볼까요?</div>`;
   }
   refreshHUD();
   dayEndOverlay.classList.add('open');
   dayEndOverlay.focus();
+  if (!dayEndBounceRAF) drawDayEndBounce();
 }
 
 deNextDay.addEventListener('click', ()=>{
   dayEndOverlay.classList.remove('open');
+  dayEndBounceRAF = null;
   day++;
   dayTimeLeft = DAY_LENGTH_SEC*60;
   dayEarnings = 0;
@@ -2379,6 +2552,8 @@ deNextDay.addEventListener('click', ()=>{
   refreshHUD();
   setMsg(`Day ${day} 영업을 시작합니다!`);
 });
+// 하루정산 화면에서 바로 저장할 수 있게 - 어느 슬롯에 저장할지는 기존 저장 슬롯 선택창을 그대로 재사용한다.
+deSaveBtn.addEventListener('click', () => { openSlotOverlay('save'); });
 
 // ============ 저장/불러오기 (IndexedDB, 슬롯 3개) ============
 // localStorage는 용량이 작아 캐릭터 커스텀 이미지(base64)를 담기 어려우므로 IndexedDB를 사용한다.
@@ -2397,6 +2572,9 @@ function openDB(){
     };
     req.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
     req.onerror = (e) => reject(e);
+    // 같은 사이트를 연 다른 탭이 연결을 쥐고 있으면 onsuccess/onerror 둘 다 안 불리고 영원히
+    // 대기하는 상태가 될 수 있다 - 최소한 거부라도 되게 해서 호출부가 무한 대기하지 않게 한다.
+    req.onblocked = () => reject(new Error('다른 탭에서 게임을 열어둔 상태라 저장소 접근이 막혔어요. 다른 탭을 닫고 다시 시도해주세요.'));
   });
 }
 
@@ -2759,8 +2937,16 @@ let settingsCurrentChar = 'player'; // 'player' | 'cook' | 'server'
 const CHAR_LABELS = { player:'플레이어', cook:'주방 알바', server:'서빙 알바' };
 
 let settingsOpen = false;
+// 타이틀 화면(게임 시작 전)에서 설정을 열면, 타이틀 오버레이(z-index가 더 높음)가 설정창을 덮어버리므로
+// 잠깐 숨겨뒀다가 설정을 닫을 때 되돌린다 - "게임을 시작해야만 설정을 볼 수 있다"는 문제를 없애서
+// 캐릭터/메뉴/테마 등을 새 게임을 만들기 전에 미리 꾸며볼 수 있게 한다.
+let settingsOpenedOverTitle = false;
 function openSettings(){
   settingsOpen = true;
+  if (titleActive) {
+    settingsOpenedOverTitle = true;
+    titleOverlay.classList.add('hidden');
+  }
   settingsOverlay.classList.add('open');
   renderSettingsBody();
   settingsOverlay.focus();
@@ -2769,9 +2955,16 @@ function closeSettings(){
   settingsOpen = false;
   settingsOverlay.classList.remove('open');
   saveGlobalCustom(); // 설정창에서 바꾼 커스텀을 저장 슬롯과 무관하게 항상 남겨둔다
+  if (settingsOpenedOverTitle) {
+    settingsOpenedOverTitle = false;
+    titleOverlay.classList.remove('hidden');
+    titleOverlay.focus();
+  }
 }
 settingsCloseBtn.addEventListener('click', closeSettings);
 shopOpenSettingsBtn.addEventListener('click', () => { closeShop(); openSettings(); });
+// 상점을 거치지 않고 HUD에서 바로 설정을 열 수 있는 독립 버튼 - 게임 시작 전(타이틀 화면)에도 눌린다.
+document.getElementById('hudSettingsBtn').addEventListener('click', () => { closeShop(); openSettings(); });
 
 settingsTabsEl.querySelectorAll('button').forEach(btn=>{
   btn.addEventListener('click', ()=>{

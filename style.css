@@ -91,7 +91,7 @@
   #invSlots, #invSlots:active { box-shadow:none; }
 
   /* 중앙 팝업창들 - 그림자 하나로만 화면 위에 살짝 떠 있는 느낌을 준다(진한 다중 그림자는 지양) */
-  #dayEndBox, #tutorialChoiceBox, #modeChoiceBox, #slotBox, #modeChangeConfirmBox {
+  #tutorialChoiceBox, #modeChoiceBox, #slotBox, #modeChangeConfirmBox {
     box-shadow: 0 10px 28px rgba(0,0,0,0.4);
   }
 
@@ -117,12 +117,25 @@
   .keyHint {
     font-size:10px; opacity:0.75; font-weight:normal;
   }
-  #hudShopBtn {
-    width:100%; background: var(--panel2); color: var(--text); border:2px solid var(--border);
-    border-radius: var(--radiusSm); padding:8px 6px; cursor:pointer; font-family:inherit;
-    font-size:13px; font-weight:bold;
+  /* 상점/설정 버튼은 서로 독립된 진입점이라(설정을 보려고 상점에 먼저 들어갈 필요가 없게) 나란히 배치한다 */
+  .hudActionRow { display:flex; gap:6px; }
+  .hudActionRow button { flex:1; min-width:0; }
+  #hudShopBtn, #hudSettingsBtn {
+    background: var(--panel2); color: var(--text); border:2px solid var(--border);
+    border-radius: var(--radiusSm); padding:8px 4px; cursor:pointer; font-family:inherit;
+    font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  #hudShopBtn:hover { border-color: var(--accent); }
+  #hudShopBtn:hover, #hudSettingsBtn:hover { border-color: var(--accent); }
+
+  /* 가게 이름/아이콘을 정하면 HUD 맨 위에도 보이게 - 시작화면에서만 보이던 것을 게임 중에도 표시 */
+  #hudStoreName {
+    display:flex; align-items:center; gap:6px;
+    font-weight:800; font-size:14px; color: var(--accent);
+    padding:0 2px 2px; line-height:1.3;
+    overflow-wrap:anywhere;
+  }
+  #hudStoreIcon { font-size:18px; flex-shrink:0; display:inline-flex; }
+  #hudStoreIcon img { width:20px; height:20px; object-fit:contain; display:block; }
   #invSlots .swapArrow { font-size:16px; color: var(--textDim); transition: color .15s, transform .15s; }
   #invSlots .swapArrow.pulse { color: var(--accent); transform: scale(1.3); }
   #invSlots .invSlot {
@@ -175,18 +188,27 @@
     width:100%; min-height:20px;
     color: var(--textDim); font-size:12px; text-align:center;
   }
+  /* 대사창 - 예전엔 캔버스 아래에 딱 붙는 어두운 바 형태라, 글자색(--text)이 밝은 테마 기준으로
+     잡혀 있어서 어두운 배경 위에서 잘 안 보인다는 피드백이 있었다. 다른 모달들과 같은 "가운데 팝업"
+     형태로 바꾸고, 팝업 자체는 테마를 따라가는 일반 패널(--panel/--text)을 쓰게 해서 항상 대비가
+     보장되게 했다. */
   #dialogue {
-    position:absolute; bottom:0; left:0; right:0;
-    background: rgba(20,17,14,0.92);
-    border-top:3px solid var(--border);
-    padding:14px 18px;
-    color: var(--text);
-    font-size:15px;
-    line-height:1.5;
-    display:none;
+    position:absolute; inset:0;
+    background: rgba(20,17,14,0.55);
+    display:none; align-items:center; justify-content:center;
+    padding:20px;
     z-index:20;
+    cursor:pointer;
   }
-  #dialogue .name { color: var(--accentOnDark); font-weight:bold; margin-bottom:4px; font-size:13px; }
+  #dialogueBox {
+    background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
+    padding:20px 24px; max-width:440px; width:100%;
+    color: var(--text); font-size:15px; line-height:1.6;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    cursor:auto;
+  }
+  #dialogue .name { color: var(--accent); font-weight:800; margin-bottom:6px; font-size:14px; }
+  #dlgHint { margin-top:14px; text-align:right; font-size:11px; color: var(--textDim); }
 
   #shopOverlay {
     position:absolute; inset:0; background: var(--bg);
@@ -224,26 +246,39 @@
   }
   #shopTabs button.active { background: var(--accentFill); color:#2a2018; }
 
+  /* 하루 정산 화면 - 작은 팝업 카드 대신 화면 전체를 테마색으로 채우고 가운데서 캐릭터가
+     통통 뛰는 축하 화면으로 바꿨다. 배경색·글자색은 테마가 바뀔 때마다 JS(applyDayEndTheme)가
+     계산해서 인라인 스타일/CSS 변수로 채워 넣는다(기본값은 초기 테마 기준 폴백). */
   #dayEndOverlay {
-    position:absolute; inset:0; background: rgba(20,17,14,0.92);
+    position:absolute; inset:0; background: #d97a4a;
     display:none; z-index:40; align-items:center; justify-content:center;
+    flex-direction:column; padding:20px;
   }
   #dayEndOverlay.open { display:flex; }
-  #dayEndBox {
-    background: var(--panel); border:3px solid var(--borderStrong); border-radius: var(--radius);
-    padding:24px 32px; width:min(320px, 92vw); color: var(--text);
+  #dayEndContent {
+    color: var(--deText, #fff8f0); display:flex; flex-direction:column; align-items:center;
+    max-width:340px; width:100%; text-align:center;
   }
-  #dayEndBox h2 { color: var(--accent); font-size:18px; margin-bottom:16px; text-align:center; }
-  #dayEndBox .stat-row {
-    display:flex; justify-content:space-between; font-size:13px;
-    margin-bottom:8px; color: var(--textDim);
+  #dayEndTitle { font-size:22px; font-weight:800; margin-bottom:2px; }
+  #deGoalLine { font-size:13px; font-weight:600; opacity:0.9; margin-bottom:4px; }
+  /* 전역 canvas 규칙(width:100%;height:auto - 메인 게임 캔버스용)이 이 작은 캐릭터 캔버스에도
+     적용되면 340px 가까이 늘어나버리므로, 의도한 실제 픽셀 크기로 명시적으로 고정한다. */
+  #dayEndCharCanvas { display:block; width:110px; height:130px; margin:4px 0 8px; }
+  #dayEndStats {
+    width:100%; background: rgba(0,0,0,0.16); border-radius: var(--radiusSm);
+    padding:10px 18px; margin-bottom:6px;
   }
-  #dayEndBox .stat-row span:last-child { color: var(--text); font-weight:bold; }
-  #deResult { margin:14px 0; text-align:center; font-size:13px; min-height:20px; }
-  #deNextDay {
-    width:100%; background: var(--goodFill); color:#fff; border:none; padding:11px;
-    border-radius:20px; cursor:pointer; font-family:inherit; font-size:13px; margin-top:6px; font-weight:bold;
+  #dayEndStats .stat-row { display:flex; justify-content:space-between; font-size:13px; padding:3px 0; }
+  #dayEndStats .stat-row span:first-child { opacity:0.85; }
+  #dayEndStats .stat-row span:last-child { font-weight:800; }
+  #deResult { margin:6px 0; font-size:12px; min-height:16px; font-weight:700; }
+  #dayEndBtnRow { display:flex; gap:10px; width:100%; margin-top:8px; }
+  #dayEndBtnRow button {
+    flex:1; border:none; padding:12px; border-radius:20px; cursor:pointer;
+    font-family:inherit; font-size:13px; font-weight:bold;
   }
+  #deNextDay { background:#fff; color:#2a2018; }
+  #deSaveBtn { background: rgba(255,255,255,0.22); color: var(--deText, #fff8f0); border:2px solid rgba(255,255,255,0.55); }
 
   #tutorialChoiceOverlay {
     position:absolute; inset:0; background: rgba(20,17,14,0.92);
@@ -623,6 +658,8 @@
       flex-direction:row; flex-wrap:wrap; gap:6px;
     }
     #hud .box { flex:1 1 100px; }
+    #hudStoreName { flex:1 1 100%; order:-1; }
+    .hudActionRow { flex:1 1 100%; }
     #invSlotsWrap { margin-top:0; flex:1 1 100%; order:99; }
   }
 
@@ -654,7 +691,9 @@
     #hud .box .boxLabel { font-size:9px; margin-bottom:0; }
     #hud .box .boxValue { font-size:12px; }
     #xpbarWrap { width:100%; margin-top:1px; }
-    #hudShopBtn { font-size:11px; padding:5px 4px; }
+    #hudShopBtn, #hudSettingsBtn { font-size:10px; padding:5px 2px; }
+    #hudStoreName { font-size:11px; }
+    #hudStoreIcon { font-size:14px; }
     #invSlotsLabel { font-size:9px; }
     #invSlots { gap:4px; }
     #invSlots .invSlot { width:36px; height:36px; }
@@ -673,7 +712,7 @@
        테두리/여백을 없애고 꽉 채운 시트 형태로 바꾼다. 다만 화면을 꽉 채우는 만큼, 노치·홈
        인디케이터 같은 안전영역(env(safe-area-inset-*))과 최소 여백을 반드시 챙겨야
        내용이 화면 모서리에 바짝 붙어 "여백이 부족해 이상해 보이는" 문제가 생기지 않는다. */
-    #dayEndBox, #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox {
+    #tutorialChoiceBox, #modeChangeConfirmBox, #modeChoiceBox, #slotBox {
       width:100%; height:100%; max-width:100%; max-height:100%;
       border-radius:0; border-width:0;
       display:flex; flex-direction:column; justify-content:center;
@@ -681,6 +720,14 @@
       padding-top: max(24px, env(safe-area-inset-top));
       padding-right: max(20px, env(safe-area-inset-right));
       padding-bottom: max(24px, env(safe-area-inset-bottom));
+      padding-left: max(20px, env(safe-area-inset-left));
+    }
+    /* 하루정산 화면은 이미 항상 전체화면이라 - 노치가 있는 폰에서 내용이 모서리에 붙지 않게
+       안전영역만큼만 더해준다. */
+    #dayEndOverlay {
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-right: max(20px, env(safe-area-inset-right));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
       padding-left: max(20px, env(safe-area-inset-left));
     }
     #settingsOverlay, #shopOverlay {

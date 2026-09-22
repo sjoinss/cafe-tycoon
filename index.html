@@ -20,6 +20,7 @@
 
 <div id="gameArea">
 <div id="hud">
+  <div id="hudStoreName"><span id="hudStoreIcon" aria-hidden="true">☕</span><span id="hudStoreNameText">카페 타이쿤</span></div>
   <div class="box"><div class="boxLabel">💰 소지금</div><div class="boxValue"><span id="money">0</span>원</div></div>
   <div class="box"><div class="boxLabel">📅 진행</div><div class="boxValue"><span id="dayLabel">Day 1</span></div><div class="boxLabel">⏱ <span id="dayTimer">5:00</span></div></div>
   <div class="box"><div class="boxLabel">🎯 누적매출</div><div class="boxValue"><span id="dayEarningsDisp">0</span></div><div class="boxLabel"><span id="goalWrap">/ <span id="goal">85000</span>원</span></div></div>
@@ -28,7 +29,10 @@
     <div class="boxLabel">Lv.<span id="level">1</span> <span id="levelName">신입 사장</span></div>
     <div id="xpbarWrap"><div id="xpbar"><div id="xpfill"></div></div></div>
   </div>
-  <button id="hudShopBtn" type="button">🛒 상점 <span class="keyHint">[P]</span></button>
+  <div class="hudActionRow">
+    <button id="hudShopBtn" type="button">🛒 상점 <span class="keyHint">[P]</span></button>
+    <button id="hudSettingsBtn" type="button">⚙️ 설정</button>
+  </div>
   <div id="invSlotsWrap">
     <div id="invSlotsLabel"><span class="swapKey">Q</span> 아이템 전환 ⟷</div>
     <button type="button" id="invSlots" aria-label="아이템 전환 (단축키 Q)">
@@ -43,8 +47,11 @@
 <div id="wrap">
   <canvas id="game" width="800" height="520" role="img" aria-label="카페 매장 화면. 캐릭터를 이동해 손님을 응대하는 게임 화면입니다.">이 브라우저는 캔버스(canvas)를 지원하지 않아 게임 화면을 표시할 수 없습니다. 최신 브라우저로 열어주세요.</canvas>
   <div id="dialogue" role="status" aria-live="polite">
-    <div class="name" id="dlgName"></div>
-    <div id="dlgText"></div>
+    <div id="dialogueBox">
+      <div class="name" id="dlgName"></div>
+      <div id="dlgText"></div>
+      <div id="dlgHint">탭하여 계속 ▸</div>
+    </div>
   </div>
   <div id="stationMenuOverlay" role="dialog" aria-modal="false" aria-labelledby="stationMenuHeading">
     <div id="stationMenuHeading">메뉴 선택</div>
@@ -236,13 +243,19 @@
     <div class="shopGrid" id="shopGrid"></div>
   </div>
   <div id="dayEndOverlay" role="dialog" aria-modal="true" aria-labelledby="dayEndTitle" tabindex="-1">
-    <div id="dayEndBox">
+    <div id="dayEndContent">
       <h2 id="dayEndTitle">오늘 영업 종료!</h2>
-      <div class="stat-row"><span>오늘 매출</span><span id="deEarnings">0원</span></div>
-      <div class="stat-row"><span>목표 금액</span><span id="deGoal">0원</span></div>
-      <div class="stat-row"><span>서빙한 손님</span><span id="deServed">0명</span></div>
+      <div id="deGoalLine">목표까지 <span id="deRemain">0원</span></div>
+      <canvas id="dayEndCharCanvas" width="110" height="130" aria-hidden="true"></canvas>
+      <div id="dayEndStats">
+        <div class="stat-row"><span>오늘 매출</span><span id="deEarnings">0원</span></div>
+        <div class="stat-row"><span>서빙한 손님</span><span id="deServed">0명</span></div>
+      </div>
       <div id="deResult"></div>
-      <button id="deNextDay">다음 날 시작하기</button>
+      <div id="dayEndBtnRow">
+        <button id="deSaveBtn" type="button">💾 저장하기</button>
+        <button id="deNextDay" type="button">다음 날로 가기 →</button>
+      </div>
     </div>
   </div>
 </div>
