@@ -149,7 +149,14 @@ const decorCustom = {
 
 // 캐릭터 렌더링 목표 크기(플레이어 기준). 업로드 이미지는 비율을 유지한 채 이 안에 맞춰 축소된다.
 // 세로는 확대해 잘 보이게 하되, 가로는 예전 폭에 가깝게 좁혀서 옆으로 넙데데해 보이지 않게 했다.
-const CHAR_TARGET_W = 50, CHAR_TARGET_H = 71;
+// 모바일에서 캐릭터가 너무 작아 보인다는 피드백으로 기존(50x71)보다 22% 키웠다 - 충돌
+// 히트박스(player.w/h)와는 무관한 순수 렌더링 크기라 이동/충돌 판정에는 영향 없다.
+const CHAR_TARGET_W = 61, CHAR_TARGET_H = 87;
+
+// 터치 기기(hover 불가) 여부. 미니게임/튜토리얼 안내 문구에서 "스페이스" 대신 "탭"으로
+// 안내하기 위해 파일 전역에서 이 값을 공유한다(기존엔 파일 맨 끝에서만 쓰여 위쪽 코드들이
+// 중복 판정을 하거나 아예 안내하지 못했다).
+const isTouchDevice = window.matchMedia('(hover: none)').matches;
 
 // 달리기(Shift)가 해금되는 레벨. 이 레벨 미만에서는 Shift를 눌러도 걷기 속도로 이동한다.
 const RUN_UNLOCK_LEVEL = 3;
@@ -1321,7 +1328,9 @@ function updateCustomers(){
         c.state='waiting_food';
         if (tutorialActive && tutorialStep===1 && t===tables[0]) {
           tutorialStep = 2;
-          setTutorialBanner(`손님이 "${c.orderLabel}"를 주문했어요! 커피머신 앞에서 스페이스를 눌러보세요.`);
+          setTutorialBanner(isTouchDevice
+            ? `손님이 "${c.orderLabel}"를 주문했어요! 커피머신을 탭해보세요.`
+            : `손님이 "${c.orderLabel}"를 주문했어요! 커피머신 앞에서 스페이스를 눌러보세요.`);
         }
       }
     } else if (c.state==='waiting_food') {
@@ -1382,10 +1391,10 @@ function startMiniGame(menuItem){
 
   if (station==='smoothie') {
     miniGame = { type:'shake', menuId:menuItem.id, phase:'blending', blendProgress:0, blendTarget:70+Math.random()*30, freezeTimer:0, shakeGauge:0, cyclesLeft: Math.random()<0.2 ? 1 : 0, doneTimer:0 }; // 난이도 추가 완화: 80% 확률로 안 멈추고, 20% 확률로 딱 1번만 멈춤
-    setMsg('갈리는 중... 멈추면 스페이스 연타로 흔들기!');
+    setMsg(isTouchDevice ? '갈리는 중... 멈추면 화면을 연타해서 흔들기!' : '갈리는 중... 멈추면 스페이스 연타로 흔들기!');
   } else if (station==='espresso') {
     miniGame = { type:'timing', menuId:menuItem.id, pos:0, dir:1, speed: 2.0, target: 40+Math.random()*20, targetWidth:22, phase:'running', doneTimer:0, attemptsLeft:1 }; // 난이도 하락: 속도 완화, 목표구간 확대
-    setMsg('스페이스로 게이지를 목표 구간에 맞춰 멈추세요!');
+    setMsg(isTouchDevice ? '화면을 탭해서 게이지를 목표 구간에 맞춰 멈추세요!' : '스페이스로 게이지를 목표 구간에 맞춰 멈추세요!');
   } else if (station==='dessert') {
     // 방향키 시퀀스 미니게임: 진열대에서 포장할 방향을 무작위로 2~3개 순서대로 맞추기
     const seqLen = 2 + Math.floor(Math.random()*2); // 2~3개
@@ -1396,7 +1405,7 @@ function startMiniGame(menuItem){
     touchDirPad.classList.add('open');
   } else if (station==='wok') {
     miniGame = { type:'stir', menuId:menuItem.id, heat:50, target:[50,90], stirGauge:0, timeLeft:420, phase:'running', doneTimer:0 }; // 난이도 하락: 목표구간 확대, 제한시간 연장
-    setMsg('스페이스를 연타해서 화력을 목표 구간(초록)에 유지하세요!');
+    setMsg(isTouchDevice ? '화면을 연타해서 화력을 목표 구간(초록)에 유지하세요!' : '스페이스를 연타해서 화력을 목표 구간(초록)에 유지하세요!');
   }
 }
 
@@ -1425,7 +1434,9 @@ function finishMiniGame(menuId){
   touchDirPad.classList.remove('open');
   if (tutorialActive && tutorialStep===2) {
     tutorialStep = 3;
-    setTutorialBanner('완성했어요! 손님 테이블로 가서 스페이스로 서빙해보세요.');
+    setTutorialBanner(isTouchDevice
+      ? '완성했어요! 손님 테이블을 탭해서 서빙해보세요.'
+      : '완성했어요! 손님 테이블로 가서 스페이스로 서빙해보세요.');
   }
 }
 
@@ -1452,7 +1463,7 @@ function updateMiniGame(){
     if (g.phase==='blending') {
       g.blendProgress += 1.2;
       if (g.blendProgress>=g.blendTarget) {
-        if (g.cyclesLeft>0) { g.phase='frozen'; g.shakeGauge=0; g.freezeTimer=0; setMsg('멈췄어요! 행동 버튼(스페이스)을 연타해서 흔드세요!'); }
+        if (g.cyclesLeft>0) { g.phase='frozen'; g.shakeGauge=0; g.freezeTimer=0; setMsg(isTouchDevice ? '멈췄어요! 화면을 연타해서 흔드세요!' : '멈췄어요! 행동 버튼(스페이스)을 연타해서 흔드세요!'); }
         else { g.phase='done'; g.doneTimer=0; }
       }
     } else if (g.phase==='frozen') {
@@ -2084,36 +2095,44 @@ function hexToRgba(hex, alpha){
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// 미니게임 UI는 카메라 확대/이동과 무관하게 항상 화면(캔버스) 정중앙에 크게 떠 있어야 한다 -
+// 예전엔 화면 상단 근처(고정 800/56 좌표)에 작게 그려서, 모바일 세로 모드에서 상단에 뜨는
+// 튜토리얼 배너(DOM, #tutorialBanner)와 완전히 겹쳐 미니게임이 안 보이는 문제가 있었다.
+// canvas.width/height를 기준으로 잡아야 모바일 세로 모드(캔버스 세로 해상도가 커짐)에서도
+// 항상 화면 한가운데에 오고, 튜토리얼 배너(화면 상단 고정)와 자연스럽게 겹치지 않는다.
+const ACTION_TAP = isTouchDevice ? '화면 탭' : '스페이스';
 function drawMiniGameOverlay(){
   if (!miniGameActive||!miniGame) return;
   const g=miniGame;
-  const bx=800/2-110, by=56, bw=220, bh=54;
+  const bw = Math.min(canvas.width*0.5, 360), bh = 150;
+  const bx = canvas.width/2 - bw/2, by = canvas.height/2 - bh/2;
   ctx.fillStyle=MG_UI.panelBg; ctx.fillRect(bx,by,bw,bh);
-  ctx.strokeStyle=MG_UI.panelBorder; ctx.strokeRect(bx,by,bw,bh);
-  ctx.font='12px monospace'; ctx.fillStyle=MG_UI.text; ctx.textAlign='center';
+  ctx.lineWidth=2; ctx.strokeStyle=MG_UI.panelBorder; ctx.strokeRect(bx,by,bw,bh);
+  ctx.font='bold 18px monospace'; ctx.fillStyle=MG_UI.text; ctx.textAlign='center';
+  const barX=bx+24, barY=by+70, barW=bw-48, barH=22;
 
   if (g.type==='idleAuto') {
     const label = MENU[g.menuId] ? MENU[g.menuId].label : '';
-    ctx.fillText(`${label} 조리 중...`, bx+bw/2, by+18);
-    ctx.fillStyle=MG_UI.barBg; ctx.fillRect(bx+10,by+28,bw-20,10);
-    ctx.fillStyle=MG_UI.good; ctx.fillRect(bx+10,by+28,(bw-20)*(g.doneTimer/g.totalFrames),10);
+    ctx.fillText(`${label} 조리 중...`, bx+bw/2, by+38);
+    ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
+    ctx.fillStyle=MG_UI.good; ctx.fillRect(barX,barY,barW*(g.doneTimer/g.totalFrames),barH);
     return;
   }
 
   if (g.type==='sequence') {
     const arrows = { up:'↑', down:'↓', left:'←', right:'→' };
     if (g.progress >= g.sequence.length) {
-      ctx.fillStyle=MG_UI.good; ctx.fillText('완성! ✨', bx+bw/2, by+30);
+      ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8);
     } else {
       ctx.fillStyle = g.mistakeFlash>0 ? MG_UI.bad : MG_UI.text;
-      ctx.fillText('방향키를 순서대로 눌러보세요', bx+bw/2, by+16);
-      const spacing = 34;
+      ctx.fillText('방향키를 순서대로 눌러보세요', bx+bw/2, by+38);
+      const spacing = 48;
       const startX = bx+bw/2 - (g.sequence.length-1)*spacing/2;
       g.sequence.forEach((dir,i)=>{
         const done = i < g.progress;
-        ctx.font = '20px monospace';
+        ctx.font = 'bold 30px monospace';
         ctx.fillStyle = done ? MG_UI.good : (i===g.progress ? MG_UI.accent : MG_UI.panelBorder);
-        ctx.fillText(arrows[dir], startX+i*spacing, by+42);
+        ctx.fillText(arrows[dir], startX+i*spacing, by+100);
       });
     }
     return;
@@ -2121,41 +2140,39 @@ function drawMiniGameOverlay(){
 
   if (g.type==='shake') {
     if (g.phase==='blending') {
-      ctx.fillText('갈리는 중...', bx+bw/2, by+18);
-      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(bx+10,by+28,bw-20,10);
-      ctx.fillStyle=MG_UI.accent; ctx.fillRect(bx+10,by+28,(bw-20)*(g.blendProgress/g.blendTarget),10);
+      ctx.fillText('갈리는 중...', bx+bw/2, by+38);
+      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
+      ctx.fillStyle=MG_UI.accent; ctx.fillRect(barX,barY,barW*(g.blendProgress/g.blendTarget),barH);
     } else if (g.phase==='frozen') {
-      ctx.fillStyle=MG_UI.bad; ctx.fillText('멈췄다! 스페이스 연타!', bx+bw/2, by+18);
-      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(bx+10,by+28,bw-20,10);
-      ctx.fillStyle=MG_UI.good; ctx.fillRect(bx+10,by+28,(bw-20)*(g.shakeGauge/100),10);
-    } else if (g.phase==='done') { ctx.fillStyle=MG_UI.good; ctx.fillText('완성! ✨', bx+bw/2, by+30); }
+      ctx.fillStyle=MG_UI.bad; ctx.fillText(`멈췄다! ${ACTION_TAP} 연타!`, bx+bw/2, by+38);
+      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
+      ctx.fillStyle=MG_UI.good; ctx.fillRect(barX,barY,barW*(g.shakeGauge/100),barH);
+    } else if (g.phase==='done') { ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8); }
   }
 
   else if (g.type==='timing') {
-    ctx.fillText('스페이스로 타이밍 맞추기', bx+bw/2, by+16);
-    const barX=bx+10, barY=by+24, barW=bw-20, barH=12;
+    ctx.fillText(`${ACTION_TAP}로 타이밍 맞추기`, bx+bw/2, by+38);
     ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
     ctx.fillStyle=hexToRgba(MG_UI.good, 0.6);
     ctx.fillRect(barX + (g.target-g.targetWidth/2)/100*barW, barY, g.targetWidth/100*barW, barH);
     ctx.fillStyle = g.phase==='stopped' ? (g.success?MG_UI.good:MG_UI.bad) : MG_UI.accent;
-    ctx.fillRect(barX + g.pos/100*barW - 2, barY-2, 4, barH+4);
+    ctx.fillRect(barX + g.pos/100*barW - 3, barY-3, 6, barH+6);
   }
 
   else if (g.type==='instant') {
-    ctx.fillText('꺼내는 중...', bx+bw/2, by+30);
+    ctx.fillText('꺼내는 중...', bx+bw/2, by+bh/2+8);
   }
 
   else if (g.type==='stir') {
     if (g.phase==='running') {
-      ctx.fillText('화력 유지! (초록 구간)', bx+bw/2, by+16);
-      const barX=bx+10, barY=by+24, barW=bw-20, barH=12;
+      ctx.fillText('화력 유지! (초록 구간)', bx+bw/2, by+38);
       ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
       ctx.fillStyle=hexToRgba(MG_UI.good, 0.6);
       ctx.fillRect(barX+g.target[0]/100*barW, barY, (g.target[1]-g.target[0])/100*barW, barH);
       ctx.fillStyle=MG_UI.accent;
-      ctx.fillRect(barX + g.heat/100*barW - 2, barY-2, 4, barH+4);
+      ctx.fillRect(barX + g.heat/100*barW - 3, barY-3, 6, barH+6);
     } else {
-      ctx.fillStyle=MG_UI.good; ctx.fillText('완성! ✨', bx+bw/2, by+30);
+      ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8);
     }
   }
 }
@@ -2909,7 +2926,9 @@ function startTutorial(){
   tutorialActive = true;
   tutorialStep = 0;
   dayOpen = true; // 이동/조리는 가능해야 하니 dayOpen은 true로 두되, 스폰/타이머만 별도로 막아둠(위에서 처리)
-  setTutorialBanner('방향키/WASD로 움직여서 커피머신 쪽으로 가보세요!');
+  setTutorialBanner(isTouchDevice
+    ? '화면을 탭해서 커피머신 쪽으로 가보세요!'
+    : '방향키/WASD로 움직여서 커피머신 쪽으로 가보세요!');
 }
 
 function advanceTutorial(){
@@ -3531,7 +3550,6 @@ function gameLoop(){
 
 refreshHUD();
 // 터치 기기(hover 없음)에서는 키보드 안내 대신 화면 조작법을 안내한다
-const isTouchDevice = window.matchMedia('(hover: none)').matches;
 document.getElementById('msg').textContent = isTouchDevice
   ? `설비·테이블을 터치하면 걸어가서 바로 조작 · 빈 곳 터치는 이동 · 아이템칸 터치로 전환 · 🛒 버튼으로 상점 열기`
   : `방향키/WASD 이동(Shift로 달리기, Lv.${RUN_UNLOCK_LEVEL}부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기`;
