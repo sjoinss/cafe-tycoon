@@ -511,9 +511,9 @@ const STATIONS_DEF = {
 // 조리 알바: 특정 스테이션에 배정되어 재료가 있으면 자동으로 랜덤 메뉴를 만들어 카운터에 올려둠(플레이어가 집어서 서빙해야 함)
 // 서빙 알바: 완성된 음식(조리대 위에 있는 것)을 자동으로 찾아 해당 손님에게 서빙
 const STAFF_DEF = {
-  cook: { id:'cook', label:'주방 알바', hireCost:450, dailyWage:120, unlockLv:2,
+  cook: { id:'cook', label:'주방 알바', hireCost:3200, dailyWage:1800, unlockLv:2,
           desc:'재료가 있으면 자동으로 조리해요. 급한 손님부터 처리해주지만, 플레이어보다는 확실히 느려요.' },
-  server: { id:'server', label:'서빙 알바', hireCost:400, dailyWage:110, unlockLv:2,
+  server: { id:'server', label:'서빙 알바', hireCost:2800, dailyWage:1600, unlockLv:2,
           desc:'완성된 음식을 손님에게 자동으로 가져다줘요. 인내심이 급한 손님부터 챙기지만, 반응은 다소 느려요.' },
 };
 const staff = { cook: { hired:false, workTimer:0 }, server: { hired:false, workTimer:0 } };
@@ -724,6 +724,10 @@ function switchActiveSlot(){
 
 const keys = {};
 window.addEventListener('keydown', e => {
+  // 설정창 등의 텍스트 입력(가게 이름/캐릭터 이름/메뉴 이름 등)에 포커스가 있을 땐 게임 단축키를
+  // 가로채면 안 된다 - 특히 스페이스바를 그대로 삼켜버리면 이름에 띄어쓰기를 넣을 수 없게 된다.
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
   const k = e.key.toLowerCase();
   keys[k] = true;
   if (k === ' ') { e.preventDefault(); tryInteract(); }
@@ -751,6 +755,21 @@ function tileSolid(tx,ty){
   if (ty<0||ty>=ROWS||tx<0||tx>=COLS) return true;
   const v = map[ty][tx];
   return v===1||v===2||v===3;
+}
+
+// 아직 해금되지 않은(벽으로 막힌) 구역이나 설비/테이블 타일 안에 캐릭터가 끼어 어느 방향으로도
+// 못 움직이게 되는 경우를 매 프레임 감시해서 안전한 기본 위치로 복구한다. 이런 상태는 정상적인
+// 이동 충돌 로직으로는 재현하기 어렵지만(저장 불러오기, 레벨업 순간 등 예외적 타이밍), 한번 걸리면
+// 스스로 빠져나올 방법이 없는 완전한 막힘이라 안전망을 둔다.
+function recoverPlayerIfStuck(){
+  const cx = Math.floor((player.x+player.w/2)/TILE);
+  const cy = Math.floor((player.y+player.h-4)/TILE);
+  if (!tileSolid(cx,cy)) return;
+  player.x = MAP_CENTER*TILE - player.w/2;
+  player.y = (ROWS-2)*TILE - (player.h-4);
+  touchMoveTarget = null;
+  pendingAutoInteract = false;
+  setMsg('캐릭터가 갈 수 없는 곳에 있어서 안전한 위치로 옮겼어요.');
 }
 
 // ============ 방치형 모드 AI ============
@@ -1010,6 +1029,11 @@ function updatePlayer(){
     const cx = player.x+player.w/2, cy = player.y+player.h/2;
     const tdx = touchMoveTarget.x-cx, tdy = touchMoveTarget.y-cy;
     if (Math.hypot(tdx,tdy) < 4) {
+      // 도착 판정(4px 이내)만 하고 위치를 보정하지 않으면, 목표 지점이 타일 경계에 가깝게 잡혔을 때
+      // 오차만큼 옆 타일로 넘어가버려 상호작용 판정(getAdjacentTiles, 타일 좌표 기준)이 실패할 수 있다.
+      // ("기계를 탭해도 가끔 반응이 없다"는 문제의 실제 원인) - 목표 좌표에 정확히 스냅해서 방지한다.
+      player.x = touchMoveTarget.x - player.w/2;
+      player.y = touchMoveTarget.y - player.h/2;
       touchMoveTarget = null;
       if (pendingAutoInteract) { pendingAutoInteract = false; tryInteract(); }
     } else {
@@ -1025,10 +1049,19 @@ function updatePlayer(){
       else if (!preferX && canMoveY) { dy = Math.sign(tdy); player.dir = dy>0?'down':'up'; }
       else if (canMoveX) { dx = Math.sign(tdx); player.dir = dx>0?'right':'left'; }
       else if (canMoveY) { dy = Math.sign(tdy); player.dir = dy>0?'down':'up'; }
-      else {
-        // 양쪽 축 모두 막혀서 더 다가갈 수 없는 경우(도달 불가능한 지점을 탭한 경우) 포기한다
-        touchMoveTarget = null;
-        pendingAutoInteract = false;
+
+      if (dx!==0 || dy!==0) {
+        touchMoveStuckFrames = 0;
+      } else {
+        // 양쪽 축이 한 프레임 막혔다고 바로 포기하면, 타일 경계에서 순간적으로만 막힌 것처럼
+        // 판정되는 경우까지 취소해버려서 "기계를 탭해도 가끔 반응이 없다"는 원인이 됐다.
+        // 잠깐(약 0.3초) 재시도하다가 그래도 계속 막히면 그때 진짜로 포기한다(도달 불가능한 지점을 탭한 경우).
+        touchMoveStuckFrames++;
+        if (touchMoveStuckFrames > 18) {
+          touchMoveTarget = null;
+          pendingAutoInteract = false;
+          touchMoveStuckFrames = 0;
+        }
       }
     }
   }
@@ -1171,6 +1204,7 @@ function selectMenuItem(menuId){
 // ("기계를 누르면 작동해야 한다"는 피드백 반영) - 빈 바닥을 탭했을 땐 이동만 한다.
 let touchMoveTarget = null; // {x,y} - 캔버스 내부 좌표(0~800, 0~520) 기준
 let pendingAutoInteract = false; // 탭으로 지정한 목표에 도착하면 자동으로 tryInteract()를 한 번 호출
+let touchMoveStuckFrames = 0; // 목표 지점으로 가는 길이 막혔을 때 바로 포기하지 않고 잠깐 재시도하기 위한 카운터
 
 function canvasPointFromEvent(e){
   const rect = canvas.getBoundingClientRect();
@@ -1204,6 +1238,7 @@ canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   const p = canvasPointFromEvent(e);
   const hit = findTappedInteractable(p.x, p.y);
+  touchMoveStuckFrames = 0;
   if (hit) {
     const adj = findNearestAdjacentOpenTile(hit.ox, hit.oy, hit.w, hit.h, hit.approach);
     touchMoveTarget = { x: adj.tx*TILE + TILE/2, y: adj.ty*TILE + TILE/2 + (adj.pixelOffsetY||0) };
@@ -1772,15 +1807,10 @@ function drawStation(key){
   // - 그대로 두면 scale이 Infinity가 되어 drawImage가 예외를 던지고 이후 프레임 렌더링이 전부 멈춘다.
   const customImgValid = customImg && customImg.naturalWidth>0 && customImg.naturalHeight>0;
 
-  // 카운터(받침대)는 기본 도트 그림의 일부로 그려지는 것이라, 커스텀 이미지를 올리면
-  // 그 아래 뜬금없는 갈색 사각형으로 남아 보이는 문제가 있었다. 커스텀 이미지가 있을 땐 생략한다.
-  if (!customImgValid) {
-    ctx.fillStyle=PAL.counter; ctx.fillRect(px,py+h-10,w,20);
-    ctx.fillStyle=PAL.counterTop; ctx.fillRect(px,py+h-14,w,6);
-    // 상판 가장자리에 살짝 하이라이트/그림자를 줘서 "기계를 얹는 조리대 상판"임이 더 명확히 보이게 한다
-    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(px,py+h-14,w,2);
-    ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(px,py+h-1,w,1);
-  }
+  // 예전엔 기계 아래에 카운터(받침대) 사각형을 항상 깔았는데, 모바일에서 그 납작한 갈색 사각형이
+  // "기계를 탭했다"는 느낌을 방해하고 시각적으로도 둔해 보인다는 피드백이 있어 제거했다.
+  // 그 대신 넣었던 옅은 그림자도 불필요하다는 피드백이 있어 함께 제거했다 - 상호작용 판정 영역
+  // (findTappedInteractable)은 이 그림과 무관하게 타일 좌표 기준으로 이미 넉넉하게 잡혀 있다.
 
   if (customImgValid) {
     // 카운터 위쪽 공간(대략 타일 1.9칸 높이)에 비율을 유지한 채 맞춰 그린다
@@ -1789,25 +1819,25 @@ function drawStation(key){
     const dw = customImg.naturalWidth*scale, dh = customImg.naturalHeight*scale;
     ctx.drawImage(customImg, px+w/2-dw/2, py+h-10-dh, dw, dh);
   } else if (key==='espresso') {
-    // 카운터 상판(py 기준)에 얹히는 크기를 기존 대비 약 20% 키웠다
-    ctx.fillStyle=PAL.machineDark; ctx.fillRect(px+4,py-24,w-8,34);
-    ctx.fillStyle=PAL.coffeeDark; ctx.fillRect(px+w/2-12,py-10,24,12);
-    ctx.fillStyle='#e8b04b'; ctx.fillRect(px+6,py-22,w-12,5);
+    // 기계가 너무 작다는 피드백으로 기존 대비 폭/높이를 한 번 더 키웠다(타일 폭을 살짝 넘어가게)
+    ctx.fillStyle=PAL.machineDark; ctx.fillRect(px-2,py-34,w+4,46);
+    ctx.fillStyle=PAL.coffeeDark; ctx.fillRect(px+w/2-16,py-14,32,16);
+    ctx.fillStyle='#e8b04b'; ctx.fillRect(px,py-31,w,7);
   } else if (key==='smoothie') {
-    ctx.fillStyle=PAL.machineBody; ctx.fillRect(px+6,py-17,w-12,29);
-    ctx.fillStyle=PAL.machineDark; ctx.fillRect(px+6,py-17,w-12,5);
-    ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.fillRect(px+w/2-10,py-29,20,17);
-    ctx.strokeStyle=PAL.machineDark; ctx.strokeRect(px+w/2-10,py-29,20,17);
+    ctx.fillStyle=PAL.machineBody; ctx.fillRect(px,py-24,w,40);
+    ctx.fillStyle=PAL.machineDark; ctx.fillRect(px,py-24,w,7);
+    ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.fillRect(px+w/2-14,py-40,28,22);
+    ctx.strokeStyle=PAL.machineDark; ctx.strokeRect(px+w/2-14,py-40,28,22);
   } else if (key==='dessert') {
-    ctx.fillStyle=PAL.displayGlass; ctx.fillRect(px+4,py-26,w-8,31);
-    ctx.strokeStyle=PAL.machineDark; ctx.strokeRect(px+4,py-26,w-8,31);
-    ctx.fillStyle='#f0c96a'; ctx.fillRect(px+8,py-7,w-16,5);
-    ctx.font='14px serif'; ctx.textAlign='center';
-    ctx.fillText('🍰🥐', px+w/2, py-9);
+    ctx.fillStyle=PAL.displayGlass; ctx.fillRect(px-2,py-36,w+4,42);
+    ctx.strokeStyle=PAL.machineDark; ctx.strokeRect(px-2,py-36,w+4,42);
+    ctx.fillStyle='#f0c96a'; ctx.fillRect(px+3,py-9,w-6,7);
+    ctx.font='19px serif'; ctx.textAlign='center';
+    ctx.fillText('🍰🥐', px+w/2, py-11);
   } else if (key==='wok') {
-    ctx.fillStyle=PAL.ovenDark; ctx.fillRect(px+4,py-19,w-8,24);
+    ctx.fillStyle=PAL.ovenDark; ctx.fillRect(px-2,py-27,w+4,32);
     ctx.fillStyle=PAL.panMetal;
-    ctx.beginPath(); ctx.ellipse(px+w/2,py-12,w/2-6,8,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(px+w/2,py-17,w/2+2,11,0,0,Math.PI*2); ctx.fill();
   }
 
   if (miniGameActive && currentIsStation(key)) {
@@ -1877,6 +1907,9 @@ function drawMiniStaffFigure(px, py, shirtColor, emoji, charKey, dir){
 // 캐릭터와 겹쳐 보이게 처리한다(플레이어가 테이블 뒤에 서면 가려지고, 앞에 서면 위로 보임).
 // 타일 크기(TILE)는 그대로 두고 배수만 키워서 테이블만 도드라져 보이게 확대했다.
 const TABLE_VISUAL_W = TILE*1.5, TABLE_VISUAL_H = TILE*1.75;
+// 기본(커스텀 이미지 없음) 테이블 상판 높이 - 예전엔 TABLE_VISUAL_H*0.22(얇은 판자 한 줄)라 납작해 보였다.
+// 위에서 내려다본 정사각형 테이블처럼 보이도록 가로(TABLE_VISUAL_W)에 가까운 높이로 키웠다.
+const TABLE_TOP_H_DEFAULT = TABLE_VISUAL_W*0.68;
 
 function drawTable(t){
   const cx = t.x*TILE + TILE/2, footY = t.y*TILE + TILE; // 발밑(충돌 기준) 좌표는 그대로 유지
@@ -1890,7 +1923,7 @@ function drawTable(t){
 
   // 커스텀 테이블 이미지는 크기가 제각각이라, 이미지 전체 높이의 22%만 손님과 겹치게 계산한다
   // (기본 도트 그림의 상판 비율과 동일하게 맞춰서, 큰 이미지를 올려도 손님이 심하게 가려지지 않게 함)
-  let overlapH = TABLE_VISUAL_H*0.22;
+  let overlapH = TABLE_TOP_H_DEFAULT;
   if (customImgValid) {
     overlapH = (customImg.naturalHeight*imgScale)*0.22;
   }
@@ -1903,14 +1936,25 @@ function drawTable(t){
     const dw = customImg.naturalWidth*imgScale, dh = customImg.naturalHeight*imgScale;
     ctx.drawImage(customImg, cx-dw/2, footY-dh, dw, dh);
   } else {
-    // 테이블 다리/그림자(아래쪽, 항상 손님보다 위에 깔림)
-    ctx.fillStyle='rgba(0,0,0,0.18)';
-    ctx.beginPath(); ctx.ellipse(cx, footY-4, TABLE_VISUAL_W*0.42, 6, 0, 0, Math.PI*2); ctx.fill();
-    // 테이블 상판(손님 발밑 쪽 살짝만 겹치도록 높이를 줄임)
-    const topH = TABLE_VISUAL_H*0.22;
-    ctx.fillStyle=PAL.tableWood; ctx.fillRect(cx-TABLE_VISUAL_W/2, footY-topH, TABLE_VISUAL_W, topH-6);
-    ctx.fillStyle='#6b4a30'; ctx.fillRect(cx-TABLE_VISUAL_W/2, footY-10, TABLE_VISUAL_W, 6);
-    ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fillRect(cx-TABLE_VISUAL_W/2+3, footY-topH, TABLE_VISUAL_W-6, 4);
+    // 위에서 내려다본 듯한 정사각형 테이블. 예전엔 얇은 판자 한 줄만 그려서 납작해 보였던 것을,
+    // 각진 사각 상판(사용자 피드백: 너무 둥글게 하지 말고 각진 채로) + 짙은 테두리 + 광택으로
+    // 바꿔서 "테이블만 위에서 본" 느낌을 준다.
+    const topH = TABLE_TOP_H_DEFAULT;
+    const legH = 7; // 상판 아래로 살짝 보이는 다리(앞쪽 두께) - 이 부분만 손님 발밑과 겹친다
+    const plateTop = footY - topH, plateH = topH - legH;
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(cx, footY-legH*0.6, TABLE_VISUAL_W*0.46, 7, 0, 0, Math.PI*2); ctx.fill();
+
+    ctx.fillStyle=PAL.tableWood;
+    ctx.fillRect(cx-TABLE_VISUAL_W/2, plateTop, TABLE_VISUAL_W, plateH);
+    ctx.strokeStyle='#6b4a30'; ctx.lineWidth=2.5;
+    ctx.strokeRect(cx-TABLE_VISUAL_W/2+1.5, plateTop+1.5, TABLE_VISUAL_W-3, plateH-3);
+    // 상판 위 살짝 광택
+    ctx.fillStyle='rgba(255,255,255,0.16)';
+    ctx.fillRect(cx-TABLE_VISUAL_W/2+7, plateTop+6, TABLE_VISUAL_W-14, 5);
+    // 앞쪽 다리 두께(입체감) - 손님 발밑과 자연스럽게 겹치는 부분
+    ctx.fillStyle='#6b4a30';
+    ctx.fillRect(cx-TABLE_VISUAL_W/2+5, footY-legH, TABLE_VISUAL_W-10, legH);
   }
 
   if (t.needsCleanup) {
@@ -1951,11 +1995,12 @@ function drawCustomer(t, cx, cy){
   const customDrawn = custom ? drawCharacterAt(ctx, custom, 'down', false, px-CHAR_TARGET_W/2, py-custH+8, 0) : false;
 
   if (!customDrawn) {
-    // 기본 도트 손님도 커스텀 이미지와 비슷한 비율로 확대해서, 캐릭터를 이미지로 바꿔도 크기 차이가 덜 나게 한다
-    const s = custH/42; // 기존 도트 크기(42 기준) 대비 확대 배율
-    ctx.fillStyle=PAL.skin; ctx.fillRect(px-9*s,py-24*s,18*s,15*s);
-    ctx.fillStyle=PAL.hairBrown; ctx.fillRect(px-10*s,py-30*s,20*s,9*s);
-    ctx.fillStyle=c.type.shirt; ctx.fillRect(px-10*s,py-11*s,20*s,16*s); // 셔츠 폭을 살짝 좁혀 갸름하게
+    // 커스텀 이미지가 없을 땐 각지고 못생긴 도트 사람 대신, 귀여운 토끼 이모지로 손님을 표시한다
+    // (사용자 피드백: 손님 도트 그림이 못생겨 보임 -> 이미지 없을 때는 그냥 토끼 이모지로).
+    ctx.font = Math.round(custH*0.82)+'px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('🐰', px, py);
   }
 
   if (c.isVip) {
@@ -2048,8 +2093,15 @@ function drawPlayer(){
   // 그림자는 고정이므로 bob이 0 밑으로(그림자보다 아래로) 내려가지 않게 해서 발이 붕 뜨지 않게 했다.
   const BOB_PATTERN = [0, -1, 0, -1];
   const bob = player.moving ? BOB_PATTERN[player.animFrame] : 0;
+  // 기본 도트 그림은 다리가 CHAR_TARGET_H의 88%까지만 그려져(아래 다리 fillRect 참고) 발밑이
+  // 박스 맨 아래보다 위에 있는데, 그림자는 항상 박스 맨 아래(py+player.h)에 고정돼 있어서
+  // 그림자와 발 사이에 항상 빈 틈이 떠 보이는 문제가 있었다. 커스텀 이미지는 이미지 자체가
+  // 박스 맨 아래까지 꽉 차게 그려지므로(drawCharacterAt), 도트 그림일 때만 그만큼 그림자를 올려 붙인다.
+  const usesCustomArt = !!(characterCustom.player && characterCustom.player.mode);
+  const dotArtFootGap = CHAR_TARGET_H*0.12;
+  const shadowY = py+player.h+2 - (usesCustomArt ? 0 : dotArtFootGap);
   ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(px+player.w/2,py+player.h+2,10,4,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(px+player.w/2,shadowY,10,4,0,0,Math.PI*2); ctx.fill();
 
   // 커스텀 이미지가 있으면 그걸로, 없으면 기본 도트 그림으로
   const customDrawn = drawCharacterAt(ctx, characterCustom.player, player.dir, player.moving, px+player.w/2-CHAR_TARGET_W/2, py+player.h-CHAR_TARGET_H, bob);
@@ -2101,38 +2153,100 @@ function hexToRgba(hex, alpha){
 // canvas.width/height를 기준으로 잡아야 모바일 세로 모드(캔버스 세로 해상도가 커짐)에서도
 // 항상 화면 한가운데에 오고, 튜토리얼 배너(화면 상단 고정)와 자연스럽게 겹치지 않는다.
 const ACTION_TAP = isTouchDevice ? '화면 탭' : '스페이스';
+// 둥근 사각형 경로(브라우저가 roundRect를 지원하지 않으면 일반 사각형으로 폴백)
+function mgRoundRectPath(x,y,w,h,r){
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+  else { ctx.beginPath(); ctx.rect(x,y,w,h); }
+}
+// 알약(캡슐) 모양 진행바 - 트랙과 채워진 부분 모두 완전히 둥근 모서리로 그려서
+// 미니게임 UI가 각지고 딱딱해 보인다는 피드백을 반영한 "부드러운" 게이지.
+function mgDrawPillBar(x,y,w,h,ratio,fillColor){
+  const r = h/2;
+  mgRoundRectPath(x,y,w,h,r);
+  ctx.fillStyle = MG_UI.barBg; ctx.fill();
+  const fw = Math.max(h, w*Math.max(0,Math.min(1,ratio)));
+  if (ratio>0.001) {
+    mgRoundRectPath(x,y,fw,h,r);
+    ctx.fillStyle = fillColor; ctx.fill();
+  }
+}
+// 둥근 마커(공 모양) - 예전엔 얇고 각진 막대였던 타이밍/화력 게이지 표시자를 대신한다.
+function mgDrawKnob(cx,cy,r,color){
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.35)'; ctx.shadowBlur=4; ctx.shadowOffsetY=2;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle=color; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.8)'; ctx.stroke();
+}
+// "완성! ✨" 문구를 살짝 통통 튀는 배지 모양으로 - 밋밋한 텍스트 한 줄 대신 존재감을 준다.
+function mgDrawDoneBadge(bx,bw,by,bh){
+  const bounce = 1 + Math.sin(Date.now()/140)*0.06;
+  ctx.save();
+  ctx.translate(bx+bw/2, by+bh/2+4);
+  ctx.scale(bounce, bounce);
+  mgRoundRectPath(-70,-22,140,44,22);
+  ctx.fillStyle = hexToRgba(MG_UI.good, 0.16);
+  ctx.fill();
+  ctx.font='bold 22px "Pretendard", sans-serif'; ctx.fillStyle=MG_UI.good; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('완성! ✨', 0, 2);
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
 function drawMiniGameOverlay(){
   if (!miniGameActive||!miniGame) return;
   const g=miniGame;
-  const bw = Math.min(canvas.width*0.5, 360), bh = 150;
+  const bw = Math.min(canvas.width*0.5, 360), bh = 156;
   const bx = canvas.width/2 - bw/2, by = canvas.height/2 - bh/2;
-  ctx.fillStyle=MG_UI.panelBg; ctx.fillRect(bx,by,bw,bh);
-  ctx.lineWidth=2; ctx.strokeStyle=MG_UI.panelBorder; ctx.strokeRect(bx,by,bw,bh);
-  ctx.font='bold 18px monospace'; ctx.fillStyle=MG_UI.text; ctx.textAlign='center';
-  const barX=bx+24, barY=by+70, barW=bw-48, barH=22;
+
+  // 패널: 각진 사각 테두리 대신 큼직하게 둥근 카드 + 부드러운 그림자로 "게임다운" 인상을 준다.
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.3)'; ctx.shadowBlur=20; ctx.shadowOffsetY=8;
+  mgRoundRectPath(bx,by,bw,bh,24);
+  ctx.fillStyle=MG_UI.panelBg; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth=3; ctx.strokeStyle=MG_UI.panelBorder;
+  mgRoundRectPath(bx,by,bw,bh,24); ctx.stroke();
+
+  ctx.font='bold 17px "Pretendard", sans-serif'; ctx.fillStyle=MG_UI.text; ctx.textAlign='center';
+  const barX=bx+26, barY=by+74, barW=bw-52, barH=24;
 
   if (g.type==='idleAuto') {
     const label = MENU[g.menuId] ? MENU[g.menuId].label : '';
-    ctx.fillText(`${label} 조리 중...`, bx+bw/2, by+38);
-    ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
-    ctx.fillStyle=MG_UI.good; ctx.fillRect(barX,barY,barW*(g.doneTimer/g.totalFrames),barH);
+    ctx.fillText(`${label} 조리 중...`, bx+bw/2, by+40);
+    mgDrawPillBar(barX,barY,barW,barH, g.doneTimer/g.totalFrames, MG_UI.good);
     return;
   }
 
   if (g.type==='sequence') {
     const arrows = { up:'↑', down:'↓', left:'←', right:'→' };
     if (g.progress >= g.sequence.length) {
-      ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8);
+      mgDrawDoneBadge(bx,bw,by,bh);
     } else {
       ctx.fillStyle = g.mistakeFlash>0 ? MG_UI.bad : MG_UI.text;
       ctx.fillText('방향키를 순서대로 눌러보세요', bx+bw/2, by+38);
-      const spacing = 48;
+      const spacing = 52;
       const startX = bx+bw/2 - (g.sequence.length-1)*spacing/2;
       g.sequence.forEach((dir,i)=>{
         const done = i < g.progress;
-        ctx.font = 'bold 30px monospace';
-        ctx.fillStyle = done ? MG_UI.good : (i===g.progress ? MG_UI.accent : MG_UI.panelBorder);
-        ctx.fillText(arrows[dir], startX+i*spacing, by+100);
+        const isCurrent = i===g.progress;
+        const cx = startX+i*spacing, cy = by+96;
+        const scale = isCurrent ? 1 + Math.sin(Date.now()/160)*0.08 : 1;
+        ctx.save();
+        ctx.translate(cx,cy); ctx.scale(scale,scale);
+        ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2);
+        ctx.fillStyle = done ? hexToRgba(MG_UI.good,0.22) : (isCurrent ? hexToRgba(MG_UI.accent,0.22) : MG_UI.barBg);
+        ctx.fill();
+        ctx.lineWidth=2.5;
+        ctx.strokeStyle = done ? MG_UI.good : (isCurrent ? MG_UI.accent : MG_UI.panelBorder);
+        ctx.stroke();
+        ctx.font='bold 22px "Pretendard", sans-serif';
+        ctx.fillStyle = done ? MG_UI.good : (isCurrent ? MG_UI.accent : MG_UI.textDim || MG_UI.text);
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(arrows[dir], 0, 1);
+        ctx.textBaseline='alphabetic';
+        ctx.restore();
       });
     }
     return;
@@ -2140,23 +2254,22 @@ function drawMiniGameOverlay(){
 
   if (g.type==='shake') {
     if (g.phase==='blending') {
-      ctx.fillText('갈리는 중...', bx+bw/2, by+38);
-      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
-      ctx.fillStyle=MG_UI.accent; ctx.fillRect(barX,barY,barW*(g.blendProgress/g.blendTarget),barH);
+      ctx.fillText('갈리는 중...', bx+bw/2, by+40);
+      mgDrawPillBar(barX,barY,barW,barH, g.blendProgress/g.blendTarget, MG_UI.accent);
     } else if (g.phase==='frozen') {
-      ctx.fillStyle=MG_UI.bad; ctx.fillText(`멈췄다! ${ACTION_TAP} 연타!`, bx+bw/2, by+38);
-      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
-      ctx.fillStyle=MG_UI.good; ctx.fillRect(barX,barY,barW*(g.shakeGauge/100),barH);
-    } else if (g.phase==='done') { ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8); }
+      ctx.fillStyle=MG_UI.bad; ctx.fillText(`멈췄다! ${ACTION_TAP} 연타!`, bx+bw/2, by+40);
+      mgDrawPillBar(barX,barY,barW,barH, g.shakeGauge/100, MG_UI.good);
+    } else if (g.phase==='done') { mgDrawDoneBadge(bx,bw,by,bh); }
   }
 
   else if (g.type==='timing') {
-    ctx.fillText(`${ACTION_TAP}로 타이밍 맞추기`, bx+bw/2, by+38);
-    ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
-    ctx.fillStyle=hexToRgba(MG_UI.good, 0.6);
-    ctx.fillRect(barX + (g.target-g.targetWidth/2)/100*barW, barY, g.targetWidth/100*barW, barH);
-    ctx.fillStyle = g.phase==='stopped' ? (g.success?MG_UI.good:MG_UI.bad) : MG_UI.accent;
-    ctx.fillRect(barX + g.pos/100*barW - 3, barY-3, 6, barH+6);
+    ctx.fillText(`${ACTION_TAP}로 타이밍 맞추기`, bx+bw/2, by+40);
+    mgRoundRectPath(barX,barY,barW,barH,barH/2); ctx.fillStyle=MG_UI.barBg; ctx.fill();
+    // 목표 구간(초록)도 둥글게
+    mgRoundRectPath(barX + (g.target-g.targetWidth/2)/100*barW, barY, g.targetWidth/100*barW, barH, barH/2);
+    ctx.fillStyle=hexToRgba(MG_UI.good, 0.55); ctx.fill();
+    const knobColor = g.phase==='stopped' ? (g.success?MG_UI.good:MG_UI.bad) : MG_UI.accent;
+    mgDrawKnob(barX + g.pos/100*barW, barY+barH/2, barH/2+4, knobColor);
   }
 
   else if (g.type==='instant') {
@@ -2165,14 +2278,13 @@ function drawMiniGameOverlay(){
 
   else if (g.type==='stir') {
     if (g.phase==='running') {
-      ctx.fillText('화력 유지! (초록 구간)', bx+bw/2, by+38);
-      ctx.fillStyle=MG_UI.barBg; ctx.fillRect(barX,barY,barW,barH);
-      ctx.fillStyle=hexToRgba(MG_UI.good, 0.6);
-      ctx.fillRect(barX+g.target[0]/100*barW, barY, (g.target[1]-g.target[0])/100*barW, barH);
-      ctx.fillStyle=MG_UI.accent;
-      ctx.fillRect(barX + g.heat/100*barW - 3, barY-3, 6, barH+6);
+      ctx.fillText('화력 유지! (초록 구간)', bx+bw/2, by+40);
+      mgRoundRectPath(barX,barY,barW,barH,barH/2); ctx.fillStyle=MG_UI.barBg; ctx.fill();
+      mgRoundRectPath(barX+g.target[0]/100*barW, barY, (g.target[1]-g.target[0])/100*barW, barH, barH/2);
+      ctx.fillStyle=hexToRgba(MG_UI.good, 0.55); ctx.fill();
+      mgDrawKnob(barX + g.heat/100*barW, barY+barH/2, barH/2+4, MG_UI.accent);
     } else {
-      ctx.fillStyle=MG_UI.good; ctx.font='bold 22px monospace'; ctx.fillText('완성! ✨', bx+bw/2, by+bh/2+8);
+      mgDrawDoneBadge(bx,bw,by,bh);
     }
   }
 }
@@ -2376,7 +2488,7 @@ function serializeMenuCustom(){
   Object.keys(MENU).forEach(id=>{
     const m = MENU[id];
     menuData[id] = {
-      price: m.price, unlockLv: m.unlockLv, iconType: m.iconType, emoji: m.emoji,
+      label: m.label, price: m.price, unlockLv: m.unlockLv, iconType: m.iconType, emoji: m.emoji,
       iconImgDataUrl: (m.iconType==='image' && m.iconImg) ? m.iconImg.src : null,
     };
   });
@@ -2393,6 +2505,7 @@ async function deserializeMenuCustom(data){
     for (const id of Object.keys(data.menu)) {
       if (!MENU[id]) continue;
       const d = data.menu[id];
+      MENU[id].label = d.label ?? MENU[id].label;
       MENU[id].price = d.price ?? MENU[id].price;
       MENU[id].unlockLv = d.unlockLv ?? MENU[id].unlockLv;
       MENU[id].iconType = d.iconType || 'emoji';
@@ -3280,7 +3393,7 @@ function renderMenuCustomPanel(){
     const uid = 'icontype_'+m.id;
     row.innerHTML = `
       <div class="miIconPreview">${iconPreviewHtml(m)}</div>
-      <div class="miLabel">${m.label}</div>
+      <label>이름 <input type="text" maxlength="12" value="${m.label}" data-field="label" class="miNameInput"></label>
       <label>가격 <input type="number" min="0" step="10" value="${m.price}" data-field="price"></label>
       <label>해금레벨 <select data-field="unlockLv">
         ${[1,2,3,4,5].map(lv=>`<option value="${lv}" ${m.unlockLv===lv?'selected':''}>Lv.${lv}</option>`).join('')}
@@ -3323,6 +3436,11 @@ function renderMenuCustomPanel(){
         }
       });
     });
+    row.querySelector('[data-field="label"]').addEventListener('change', (e)=>{
+      const v = e.target.value.trim();
+      if (v) { m.label = v; renderMenuCustomPanel(); }
+      else e.target.value = m.label; // 빈 값은 무시하고 기존 이름 유지
+    });
     row.querySelector('[data-field="price"]').addEventListener('change', (e)=>{
       const v = Math.max(0, parseInt(e.target.value)||0);
       m.price = v;
@@ -3342,6 +3460,7 @@ function renderMenuCustomPanel(){
 settingsResetMenuBtn.addEventListener('click', ()=>{
   Object.keys(MENU).forEach(id=>{
     const def = MENU_DEFAULTS[id];
+    MENU[id].label = def.label;
     MENU[id].price = def.price;
     MENU[id].unlockLv = def.unlockLv;
     MENU[id].emoji = def.emoji;
@@ -3519,6 +3638,7 @@ function gameLoop(){
     } else {
       updatePlayer();
     }
+    recoverPlayerIfStuck();
     trySpawnCustomer();
     updateCustomers();
     updateMiniGame();
