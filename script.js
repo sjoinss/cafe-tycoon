@@ -2152,49 +2152,53 @@ function drawBunnyCharacter(targetCtx, dLeft, dTop, dw, dh, dir, legSwing){
   const cx = dLeft + dw/2;
   const bodyCx = cx, bodyCy = dTop + dh*0.74, bodyRx = dw*0.40, bodyRy = dh*0.24;
   const headCx = cx, headCy = dTop + dh*0.40, headR = dw*0.46;
-  // 연분홍이 바닥색과 비슷해 잘 안 보인다는 피드백 - 색을 바꾸는 대신 흰 테두리를 둘러서
-  // 어떤 배경 위에서도 또렷하게 보이게 한다.
-  targetCtx.lineWidth = Math.max(1.5, dw*0.045);
-  targetCtx.strokeStyle = '#fff';
-
-  // 발(몸통 아래로 살짝 보이는 짧고 통통한 발)
-  targetCtx.fillStyle = PAL.bunnyPink;
-  targetCtx.beginPath();
-  targetCtx.ellipse(bodyCx-dw*0.16+legSwing, dTop+dh*0.92, dw*0.15, dh*0.05, 0, 0, Math.PI*2);
-  targetCtx.ellipse(bodyCx+dw*0.16-legSwing, dTop+dh*0.92, dw*0.15, dh*0.05, 0, 0, Math.PI*2);
-  targetCtx.fill();
-  targetCtx.stroke();
-
-  // 몸통(머리보다 작게 - 짧고 통통한 실루엣의 핵심)
-  targetCtx.beginPath();
-  targetCtx.ellipse(bodyCx, bodyCy, bodyRx, bodyRy, 0, 0, Math.PI*2);
-  targetCtx.fill();
-  targetCtx.stroke();
-
-  // 귀 - 바깥쪽은 몸통과 같은 연분홍, 안쪽은 더 밝은 속귀색
   const earW = dw*0.18, earH = dh*0.36;
+
+  // 몸을 이루는 도형(발/몸통/귀 바깥쪽/머리)을 한 색으로 그리는 헬퍼. pad를 주면 모든 도형을
+  // 그만큼 부풀려서 그린다 - 각 도형에 따로 테두리(stroke)를 그리면 머리-몸통, 귀-머리처럼
+  // 이어붙는 안쪽 경계에도 선이 남아 "도형별로 잘린" 것처럼 보인다는 피드백이 있었다.
+  // 대신 부풀린 실루엣 전체를 흰색으로 한 번 깔고 그 위에 원래 크기로 다시 덮어 그리면,
+  // 안쪽 이음선은 색칠로 덮여 사라지고 겉태두리에만 흰 테두리가 남는다.
+  function silhouette(pad, color){
+    targetCtx.fillStyle = color;
+    targetCtx.beginPath();
+    targetCtx.ellipse(bodyCx-dw*0.16+legSwing, dTop+dh*0.92, dw*0.15+pad, dh*0.05+pad*0.6, 0, 0, Math.PI*2);
+    targetCtx.ellipse(bodyCx+dw*0.16-legSwing, dTop+dh*0.92, dw*0.15+pad, dh*0.05+pad*0.6, 0, 0, Math.PI*2);
+    targetCtx.fill();
+    [-1,1].forEach(side=>{
+      targetCtx.save();
+      targetCtx.translate(headCx + side*headR*0.5, headCy - headR*0.78);
+      targetCtx.rotate(side*0.14);
+      targetCtx.beginPath();
+      targetCtx.ellipse(0, -earH*0.32, earW/2+pad, earH/2+pad, 0, 0, Math.PI*2);
+      targetCtx.fill();
+      targetCtx.restore();
+    });
+    targetCtx.beginPath();
+    targetCtx.ellipse(bodyCx, bodyCy, bodyRx+pad, bodyRy+pad, 0, 0, Math.PI*2);
+    targetCtx.fill();
+    targetCtx.beginPath();
+    targetCtx.ellipse(headCx, headCy, headR+pad, headR*0.92+pad, 0, 0, Math.PI*2);
+    targetCtx.fill();
+  }
+
+  // 연분홍이 바닥색과 비슷해 잘 안 보인다는 피드백 - 색을 바꾸는 대신 겉태두리에만 흰 테두리를
+  // 둘러서 어떤 배경 위에서도 또렷하게 보이게 한다.
+  const outlinePad = Math.max(1.5, dw*0.05);
+  silhouette(outlinePad, '#fff');
+  silhouette(0, PAL.bunnyPink);
+
+  // 귀 안쪽(속귀) - 실루엣엔 포함하지 않고 원래 크기로만 색을 얹는다
   [-1,1].forEach(side=>{
     targetCtx.save();
     targetCtx.translate(headCx + side*headR*0.5, headCy - headR*0.78);
     targetCtx.rotate(side*0.14);
-    targetCtx.fillStyle = PAL.bunnyPink;
-    targetCtx.beginPath();
-    targetCtx.ellipse(0, -earH*0.32, earW/2, earH/2, 0, 0, Math.PI*2);
-    targetCtx.fill();
-    targetCtx.stroke();
     targetCtx.fillStyle = PAL.bunnyPinkLight;
     targetCtx.beginPath();
     targetCtx.ellipse(0, -earH*0.24, earW*0.32, earH*0.34, 0, 0, Math.PI*2);
     targetCtx.fill();
     targetCtx.restore();
   });
-
-  // 머리(몸통보다 큼직하게 - 치이카와 비율)
-  targetCtx.fillStyle = PAL.bunnyPink;
-  targetCtx.beginPath();
-  targetCtx.ellipse(headCx, headCy, headR, headR*0.92, 0, 0, Math.PI*2);
-  targetCtx.fill();
-  targetCtx.stroke();
 
   // 볼터치
   targetCtx.fillStyle = PAL.bunnyBlush;
