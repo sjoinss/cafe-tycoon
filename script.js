@@ -2007,18 +2007,8 @@ function drawCustomer(t, cx, cy){
   if (!customDrawn) {
     // 커스텀 이미지가 없을 땐 각지고 못생긴 도트 사람 대신, 귀여운 토끼 이모지로 손님을 표시한다
     // (사용자 피드백: 손님 도트 그림이 못생겨 보임 -> 이미지 없을 때는 그냥 토끼 이모지로).
-    // 이모지 뒤에 흰 원판(스티커 느낌)을 깔아서 - 바닥색과 겹쳐 흐릿/반투명하게 보인다는 피드백과
-    // 배경과 비슷해 잘 안 보인다는 피드백을 함께 해결한다. globalAlpha도 확실히 1로 고정한다.
-    const r = custH*0.44;
-    ctx.save();
-    ctx.globalAlpha = 1;
-    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
-    ctx.beginPath();
-    ctx.arc(px, py-r*0.82, r, 0, Math.PI*2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.restore();
-
+    // 뒤에 흰 원판을 깔았었는데 스티커처럼 튀어 보인다는 피드백이 있어 없앴다.
+    // 반투명하게 보이던 문제는 원판이 아니라 globalAlpha 고정으로 해결된 부분이라 그대로 둔다.
     ctx.globalAlpha = 1;
     ctx.font = Math.round(custH*0.82)+'px serif';
     ctx.textAlign = 'center';
@@ -2110,12 +2100,12 @@ function drawCharacterAt(targetCtx, custom, dir, walking, x, y, bob){
 
 function drawPlayer(){
   const px=player.x, py=player.y;
-  // animFrame(0~3)을 그대로 sin 위상으로 쓰면 3->0으로 넘어가는 순간 값이 급격히 튀어
-  // "위아래로 퉁퉁 튀는" 부자연스러운 움직임이 된다. 대신 규칙적인 4단계 바운스 패턴을 써서
-  // 0(딛는 순간, 그림자와 딱 맞음) -> 위로 살짝 -> 0 -> 위로 살짝 순으로 순환하게 한다.
-  // 그림자는 고정이므로 bob이 0 밑으로(그림자보다 아래로) 내려가지 않게 해서 발이 붕 뜨지 않게 했다.
-  const BOB_PATTERN = [0, -1, 0, -1];
-  const bob = player.moving ? BOB_PATTERN[player.animFrame] : 0;
+  // animFrame(정수 0~3, 프레임 카운트로 계단식 증가)을 그대로 인덱스/부호로 쓰면 프레임이 몇 개씩
+  // 밀리거나(다른 프레임 작업으로 렌더가 잠깐 늦어지는 경우 등) 값이 한 번에 여러 단계 튀어 걷는
+  // 모습이 "드득드득" 떨리듯 보인다는 피드백이 있었다. 알바 캐릭터(drawStaffCharacters)처럼
+  // Date.now() 기반 연속적인 사인파를 위상으로 쓰면 프레임 타이밍과 무관하게 항상 부드럽게
+  // 이어진다. 그림자는 고정이므로 bob은 0 밑(그림자보다 아래)으로 내려가지 않게 -Math.abs로 묶는다.
+  const bob = player.moving ? -Math.abs(Math.sin(Date.now()/140))*1.4 : 0;
   // 기본 도트 그림은 다리가 CHAR_TARGET_H의 88%까지만 그려져(아래 다리 fillRect 참고) 발밑이
   // 박스 맨 아래보다 위에 있는데, 그림자는 항상 박스 맨 아래(py+player.h)에 고정돼 있어서
   // 그림자와 발 사이에 항상 빈 틈이 떠 보이는 문제가 있었다. 커스텀 이미지는 이미지 자체가
@@ -2135,8 +2125,9 @@ function drawPlayer(){
     // 발밑 기준점(player.x+player.w/2, player.y+player.h)은 그대로 유지해 이동/충돌엔 영향 없음.
     const dw = CHAR_TARGET_W, dh = CHAR_TARGET_H;
     const dLeft = px+player.w/2-dw/2, dTop = py+player.h-dh + bob;
-    // 걷는 중이면 발이 번갈아 좌우로 살짝 벌어져서 걷는 느낌을 준다(animFrame 0~3 순환)
-    const legSwing = player.moving ? (player.animFrame%2===0 ? 1 : -1) * dw*0.02 : 0;
+    // 걷는 중이면 발이 좌우로 살짝 벌어져서 걷는 느낌을 준다 - bob과 같은 연속 사인파 위상을 써서
+    // 프레임 스텝 단위로 뚝뚝 끊기지 않고 부드럽게 좌우로 오가게 한다.
+    const legSwing = player.moving ? Math.sin(Date.now()/140) * dw*0.02 : 0;
     drawBunnyCharacter(ctx, dLeft, dTop, dw, dh, player.dir, legSwing);
   }
 
@@ -3075,7 +3066,7 @@ function renderCustomerSettingsBody(){
   if (customerCustom.mode==='none') {
     typeTabs.style.display = 'none';
     editArea.style.display = 'none';
-    settingsUploadArea.innerHTML = '<div style="color:var(--textDim);">모든 손님이 기본 도트 그림으로 나와요.</div>';
+    settingsUploadArea.innerHTML = '<div style="color:var(--textDim);">모든 손님이 기본 토끼 이모지로 나와요.</div>';
     drawCustomerPreview(null);
     return;
   }
@@ -3189,22 +3180,36 @@ function renderCharUploadAreaFor(custom, onChange){
   }
 }
 
+// custom이 없으면(= "커스텀 안 함") 아무것도 안 그려서 미리보기가 그냥 빈 어두운 사각형으로
+// 보이는 문제가 있었다 - 실제 게임 화면(drawCustomer)과 똑같이 토끼 이모지로 폴백한다.
 function drawCustomerPreview(custom){
   previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
   previewCtx.fillStyle = '#3a2b1f';
   previewCtx.fillRect(0,0,previewCanvas.width, previewCanvas.height);
-  if (!custom) return;
   const cx = previewCanvas.width/2, cy = previewCanvas.height/2;
-  drawCharacterAt(previewCtx, custom, 'down', false, cx - CHAR_TARGET_W/2, cy - CHAR_TARGET_H/2, 0);
+  const drawn = drawCharacterAt(previewCtx, custom, 'down', false, cx - CHAR_TARGET_W/2, cy - CHAR_TARGET_H/2, 0);
+  if (!drawn) {
+    previewCtx.globalAlpha = 1;
+    previewCtx.font = Math.round(CHAR_TARGET_H*0.6)+'px serif';
+    previewCtx.textAlign = 'center';
+    previewCtx.textBaseline = 'middle';
+    previewCtx.fillText('🐰', cx, cy);
+    previewCtx.textBaseline = 'alphabetic';
+  }
 }
 
+// 마찬가지로 custom이 없으면(= "커스텀 안 함") 실제 게임 화면(drawPlayer/drawMiniStaffFigure)과
+// 동일하게 기본 도트(토끼) 캐릭터로 폴백해서 그린다 - 빈 사각형만 보이던 문제를 고친다.
 function drawSettingsPreview(){
   previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
   previewCtx.fillStyle = '#3a2b1f';
   previewCtx.fillRect(0,0,previewCanvas.width, previewCanvas.height);
   const custom = characterCustom[settingsCurrentChar];
   const cx = previewCanvas.width/2, cy = previewCanvas.height/2;
-  drawCharacterAt(previewCtx, custom, 'down', false, cx - CHAR_TARGET_W/2, cy - CHAR_TARGET_H/2, 0);
+  const drawn = drawCharacterAt(previewCtx, custom, 'down', false, cx - CHAR_TARGET_W/2, cy - CHAR_TARGET_H/2, 0);
+  if (!drawn) {
+    drawBunnyCharacter(previewCtx, cx - CHAR_TARGET_W/2, cy - CHAR_TARGET_H/2, CHAR_TARGET_W, CHAR_TARGET_H, 'down', 0);
+  }
 }
 
 // ============ 튜토리얼 ============
@@ -3268,10 +3273,6 @@ function finishTutorial(){
   tables[0].customer = null;
   tutorialDone = true;
   setMsg('튜토리얼 완료! 이제 진짜 영업을 시작합니다.');
-  showDialogue([
-    { name:'???', text:'좋아요, 이제 조작법을 다 익혔네요!' },
-    { name:'???', text:'진짜 손님들이 곧 찾아올 거예요. 화이팅!' },
-  ]);
 }
 
 tutorialYesBtn.addEventListener('click', () => {
@@ -3323,13 +3324,10 @@ modeIdleBtn.addEventListener('click', () => {
   refreshHUD();
 });
 
+// 설명은 최소한만 - 나머지 규칙(메뉴 해금, 정산, 테이블 치우기 등)은 튜토리얼과 직접 플레이로 자연스럽게 익히게 둔다.
 function runIntroFlow(){
   showDialogue([
-    { name:'???', text:'어서 와요! 여기가 앞으로 당신이 운영할 작은 카페예요.' },
-    { name:'???', text:'지금은 에스프레소와 아메리카노, 스무디 정도만 팔 수 있어요.' },
-    { name:'???', text:'상점에서 새 재료를 사면 그 자리에서 관련 메뉴가 바로 열려요.' },
-    { name:'???', text:`영업일은 하루 ${Math.floor(DAY_LENGTH_SEC/60)}분 정도예요. ${CAMPAIGN_DAYS}일 안에 누적 ${CAMPAIGN_GOAL}원을 벌면 스토리가 끝나요.` },
-    { name:'???', text:'손님이 떠난 테이블은 꼭 치워야 다음 손님이 앉을 수 있어요. P키로 상점도 잊지 마세요.' },
+    { name:'???', text:'어서 와요! 이제부터 이 작은 카페는 당신 거예요.' },
   ], () => {
     showTutorialChoice();
   });
@@ -3866,10 +3864,11 @@ function gameLoop(){
 }
 
 refreshHUD();
-// 터치 기기(hover 없음)에서는 키보드 안내 대신 화면 조작법을 안내한다
+// 조작법은 최소한만 안내하고 나머지(달리기, 아이템 전환, 상점)는 화면의 버튼/힌트로 직접 발견하게 둔다 -
+// 설명이 길면 오히려 안 읽는다는 피드백 반영.
 document.getElementById('msg').textContent = isTouchDevice
-  ? `설비·테이블을 터치하면 걸어가서 바로 조작 · 빈 곳 터치는 이동 · 아이템칸 터치로 전환 · 🛒 버튼으로 상점 열기`
-  : `방향키/WASD 이동(Shift로 달리기, Lv.${RUN_UNLOCK_LEVEL}부터) · 설비 근처에서 스페이스로 조작 · Q키로 아이템 전환 · P키로 상점 열기`;
+  ? '터치해서 이동 · 설비/테이블 터치로 조작'
+  : '방향키로 이동 · 스페이스로 조작';
 
 // ============ 게임 시작 흐름 ============
 // 자동 불러오기는 하지 않는다. 항상 타이틀 화면에서 "새 게임" 또는 "이어하기"를 선택하게 한다.
