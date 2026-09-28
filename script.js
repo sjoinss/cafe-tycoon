@@ -34,6 +34,94 @@ const THEMES = {
 };
 let currentTheme = 'white';
 
+// ============ 커스텀 테마(자유 색상 선택) ============
+// 정해진 6개 팔레트 외에, 사용자가 "포인트 색"과 "배경 색" 두 가지만 골라도 나머지 변수 전체를
+// 자동으로 만들어주는 'custom' 테마. 어떤 색을 골라도 글자가 안 보이는 일이 없도록 텍스트용 색은
+// 위 THEMES 주석과 같은 WCAG 대비 기준을 만족할 때까지 명도를 자동 보정한다.
+// 배경이 어두우면 다크 테마 구조(카드도 어두움), 밝으면 흰 카드 구조를 따른다.
+const customThemeColors = { bg:'#fff8f0', accent:'#ea580c' };
+
+function mixHex(a, b, t){
+  const pa = [1,3,5].map(i=>parseInt(a.substr(i,2),16)), pb = [1,3,5].map(i=>parseInt(b.substr(i,2),16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+function relLuminance(hex){
+  const [r,g,b] = [1,3,5].map(i=>{
+    const c = parseInt(hex.substr(i,2),16)/255;
+    return c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+  });
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function contrastRatio(a, b){
+  const la = relLuminance(a), lb = relLuminance(b);
+  return (Math.max(la,lb)+0.05)/(Math.min(la,lb)+0.05);
+}
+// against 색 위에서 target 대비를 만족할 때까지 hex의 명도(HSL l)를 한 방향으로 조정한다.
+function ensureContrast(hex, against, target, lighter){
+  let { h, s, l } = hexToHsl(hex);
+  let out = hex;
+  for (let i=0; i<60 && contrastRatio(out, against)<target; i++) {
+    l = lighter ? Math.min(100, l+2) : Math.max(0, l-2);
+    out = hslToHex(h, s, l);
+  }
+  return out;
+}
+
+function buildCustomThemeVars(bg, accent){
+  const isDark = relLuminance(bg) < 0.18;
+  const { h, s } = hexToHsl(accent);
+  if (!isDark) {
+    const panel2 = mixHex(bg, accent, 0.08);
+    const floor1 = mixHex(mixHex(bg, '#c8b89c', 0.25), accent, 0.08);
+    return {
+      bg, panel:'#ffffff', panel2,
+      border: mixHex(bg, accent, 0.14),
+      borderStrong: mixHex('#ffffff', accent, 0.55),
+      text: ensureContrast(hslToHex(h, Math.min(s,60), 22), panel2, 7, false),
+      textDim: ensureContrast(hslToHex(h, Math.min(s,25), 45), panel2, 4.5, false),
+      accent: ensureContrast(accent, panel2, 4.5, false),
+      accent2: ensureContrast(accent, panel2, 3.2, false),
+      good:'#15803d', bad:'#dc2626',
+      accentFill: ensureContrast(accent, '#ffffff', 3.5, false),
+      goodFill:'#16a34a', badFill:'#dc2626',
+      floor1, floor2: mixHex(floor1, '#000000', 0.05),
+    };
+  }
+  const panel2 = mixHex(bg, '#ffffff', 0.11);
+  const accentText = ensureContrast(accent, panel2, 4.5, true);
+  const floor1 = mixHex(mixHex(bg, '#ffffff', 0.2), accent, 0.15);
+  return {
+    bg, panel: mixHex(bg, '#ffffff', 0.06), panel2,
+    border: mixHex(bg, '#ffffff', 0.17),
+    borderStrong: mixHex(bg, accent, 0.55),
+    text:'#f5f3fa',
+    textDim: ensureContrast(mixHex('#f5f3fa', bg, 0.3), panel2, 4.5, true),
+    accent: accentText,
+    accent2: mixHex(accentText, '#ffffff', 0.35),
+    good:'#7ee0a8', bad:'#ff8f8f',
+    accentFill: ensureContrast(accent, '#ffffff', 3, false),
+    goodFill:'#22c55e', badFill:'#ef4444',
+    floor1, floor2: mixHex(floor1, '#000000', 0.1),
+  };
+}
+function refreshCustomTheme(){
+  const { bg, accent } = customThemeColors;
+  THEMES.custom = {
+    label:'직접 선택',
+    swatch:`linear-gradient(135deg, ${bg} 0 50%, ${accent} 50% 100%)`,
+    vars: buildCustomThemeVars(bg, accent),
+  };
+}
+refreshCustomTheme();
+// 저장/가져오기 데이터에서 커스텀 테마 색을 복원한다(잘못된 값은 무시).
+function setCustomThemeColors(ct){
+  if (!ct) return;
+  const hexRe = /^#[0-9a-f]{6}$/i;
+  if (hexRe.test(ct.bg)) customThemeColors.bg = ct.bg.toLowerCase();
+  if (hexRe.test(ct.accent)) customThemeColors.accent = ct.accent.toLowerCase();
+  refreshCustomTheme();
+}
+
 // ============ 가게 이름 / 시작화면 아이콘 커스텀 ============
 let gameTitleName = '카페 타이쿤';
 const gameTitleIcon = { mode:'emoji', emoji:'☕', img:null }; // mode: 'emoji' | 'image'
@@ -64,6 +152,7 @@ function saveGlobalSettings(){
   try {
     const data = {
       theme: currentTheme,
+      customTheme: { bg: customThemeColors.bg, accent: customThemeColors.accent },
       titleName: gameTitleName,
       titleIcon: { mode: gameTitleIcon.mode, emoji: gameTitleIcon.emoji, imgDataUrl: gameTitleIcon.img ? gameTitleIcon.img.src : null },
     };
@@ -75,6 +164,7 @@ async function loadGlobalSettings(){
     const raw = localStorage.getItem(GLOBAL_SETTINGS_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
+    setCustomThemeColors(data.customTheme);
     if (data.theme) applyTheme(data.theme);
     if (data.titleName) gameTitleName = data.titleName;
     if (data.titleIcon) {
@@ -1978,6 +2068,7 @@ function drawTable(t){
     ctx.fillStyle='rgba(255,255,255,0.9)';
     ctx.beginPath(); ctx.arc(cx, iconY-7, 16, 0, Math.PI*2); ctx.fill();
     ctx.font='26px serif'; ctx.textAlign='center';
+    ctx.fillStyle='#000'; // 이모지가 위 원판의 반투명 fillStyle(0.9)을 물려받지 않도록
     ctx.fillText('🧹', cx, iconY);
   }
 }
@@ -2008,8 +2099,11 @@ function drawCustomer(t, cx, cy){
     // 커스텀 이미지가 없을 땐 각지고 못생긴 도트 사람 대신, 귀여운 토끼 이모지로 손님을 표시한다
     // (사용자 피드백: 손님 도트 그림이 못생겨 보임 -> 이미지 없을 때는 그냥 토끼 이모지로).
     // 뒤에 흰 원판을 깔았었는데 스티커처럼 튀어 보인다는 피드백이 있어 없앴다.
-    // 반투명하게 보이던 문제는 원판이 아니라 globalAlpha 고정으로 해결된 부분이라 그대로 둔다.
+    // 반투명하게 보이던 진짜 원인: 캔버스 fillText로 그린 컬러 이모지는 globalAlpha뿐 아니라
+    // fillStyle의 알파값에도 영향을 받는다. 직전에 그린 테이블 상판 광택(rgba(255,255,255,0.16))의
+    // fillStyle이 그대로 남아 있어 토끼가 16% 불투명도로 그려졌다 - 불투명 색으로 초기화한다.
     ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
     ctx.font = Math.round(custH*0.82)+'px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -3437,6 +3531,7 @@ customExportBtn.addEventListener('click', ()=>{
   const bundle = {
     kind: 'cafeTycoonCustomExport',
     theme: currentTheme,
+    customTheme: { bg: customThemeColors.bg, accent: customThemeColors.accent },
     titleName: gameTitleName,
     titleIcon: { mode: gameTitleIcon.mode, emoji: gameTitleIcon.emoji, imgDataUrl: gameTitleIcon.img ? gameTitleIcon.img.src : null },
     ...collectCustomizationBundle(),
@@ -3452,6 +3547,7 @@ customImportFile.addEventListener('change', async (e)=>{
   if (!file) return;
   try {
     const data = await readJsonFile(file);
+    setCustomThemeColors(data.customTheme);
     if (data.theme) applyTheme(data.theme);
     if (data.titleName) gameTitleName = data.titleName;
     if (data.titleIcon) {
@@ -3680,6 +3776,7 @@ function renderThemeSwatches(){
     const sw = document.createElement('button');
     sw.type = 'button';
     sw.className = 'themeSwatch' + (currentTheme===id ? ' active' : '');
+    sw.dataset.themeId = id;
     sw.style.background = theme.swatch;
     sw.title = theme.label;
     sw.setAttribute('aria-label', `${theme.label} 테마`);
@@ -3691,6 +3788,28 @@ function renderThemeSwatches(){
     });
     wrap.appendChild(sw);
   });
+
+  // 자유 색상 선택: 색을 바꾸는 즉시 '직접 선택' 테마로 전환해 미리 보여준다.
+  const accentInput = document.getElementById('customThemeAccent');
+  const bgInput = document.getElementById('customThemeBg');
+  accentInput.value = customThemeColors.accent;
+  bgInput.value = customThemeColors.bg;
+  const onPick = ()=>{
+    customThemeColors.accent = accentInput.value;
+    customThemeColors.bg = bgInput.value;
+    refreshCustomTheme();
+    applyTheme('custom');
+    wrap.querySelectorAll('.themeSwatch').forEach(el=>{
+      const on = el.dataset.themeId==='custom';
+      el.classList.toggle('active', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on) el.style.background = THEMES.custom.swatch;
+    });
+  };
+  accentInput.oninput = onPick;
+  bgInput.oninput = onPick;
+  accentInput.onchange = saveGlobalSettings;
+  bgInput.onchange = saveGlobalSettings;
 }
 
 function renderTitleCustomUI(){
