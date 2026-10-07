@@ -1,3 +1,26 @@
+// ============ 보안 헬퍼 (HTML 이스케이프 · 불러온 데이터 검사) ============
+// 이름·이모지·숫자처럼 사용자가 바꾸거나 파일로 불러온 값은 HTML 문자열에 넣기 전에 반드시 escapeHtml()을 거친다.
+// (남에게서 받은 커스텀/저장 파일을 불러오면, 이름 안에 숨긴 스크립트가 실행될 수 있기 때문)
+const HTML_ESCAPES = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+function escapeHtml(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
+}
+// 불러온 글자: 문자열이 아니면 기본값, 앞뒤 공백 제거, 길이 제한
+function safeText(v, maxLen, fallback){
+  if (typeof v !== 'string') return fallback;
+  const t = v.trim().slice(0, maxLen);
+  return t || fallback;
+}
+// 불러온 숫자: 유한한 숫자가 아니면 기본값, 범위 안으로
+function safeNum(v, fallback, min = -Infinity, max = Infinity){
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+// 불러온 이미지 주소: 이 게임이 만드는 data:image base64 주소만 허용 (다른 사이트 주소·스크립트 주소 차단)
+function isSafeImageDataUrl(v){
+  return typeof v === 'string' && /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/.test(v);
+}
+
 // ============ 기본 세팅 ============
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -131,7 +154,7 @@ function applyTitleCustom(){
   document.getElementById('titleGameName').textContent = gameTitleName || '카페 타이쿤';
   const preview = document.getElementById('titleIconPreview');
   if (gameTitleIcon.mode==='image' && gameTitleIcon.img) {
-    preview.innerHTML = `<img src="${gameTitleIcon.img.src}" alt="">`;
+    preview.innerHTML = `<img src="${escapeHtml(gameTitleIcon.img.src)}" alt="">`;
   } else {
     preview.textContent = gameTitleIcon.emoji || '☕';
   }
@@ -140,7 +163,7 @@ function applyTitleCustom(){
   document.getElementById('hudStoreNameText').textContent = gameTitleName || '카페 타이쿤';
   const hudIcon = document.getElementById('hudStoreIcon');
   if (gameTitleIcon.mode==='image' && gameTitleIcon.img) {
-    hudIcon.innerHTML = `<img src="${gameTitleIcon.img.src}" alt="">`;
+    hudIcon.innerHTML = `<img src="${escapeHtml(gameTitleIcon.img.src)}" alt="">`;
   } else {
     hudIcon.textContent = gameTitleIcon.emoji || '☕';
   }
@@ -166,12 +189,12 @@ async function loadGlobalSettings(){
     const data = JSON.parse(raw);
     setCustomThemeColors(data.customTheme);
     if (data.theme) applyTheme(data.theme);
-    if (data.titleName) gameTitleName = data.titleName;
+    if (data.titleName) gameTitleName = safeText(data.titleName, GAME_TITLE_NAME_MAXLEN, gameTitleName);
     if (data.titleIcon) {
-      gameTitleIcon.mode = data.titleIcon.mode || 'emoji';
-      gameTitleIcon.emoji = data.titleIcon.emoji || '☕';
+      gameTitleIcon.mode = data.titleIcon.mode === 'image' ? 'image' : 'emoji';
+      gameTitleIcon.emoji = safeText(data.titleIcon.emoji, 4, '☕');
       if (data.titleIcon.imgDataUrl) {
-        gameTitleIcon.img = await new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src=data.titleIcon.imgDataUrl; });
+        gameTitleIcon.img = await dataUrlToImg(data.titleIcon.imgDataUrl);
       }
     }
     applyTitleCustom();
@@ -306,7 +329,7 @@ function createImageDropzone(opts){
       zone.appendChild(icon);
       const text = document.createElement('div');
       text.className = 'dzText';
-      text.innerHTML = `<b>${opts.label || '이미지'}</b>${opts.sub || '클릭 또는 드래그'}`;
+      text.innerHTML = `<b>${escapeHtml(opts.label || '이미지')}</b>${escapeHtml(opts.sub || '클릭 또는 드래그')}`;
       zone.appendChild(text);
     }
     const input = document.createElement('input');
@@ -476,9 +499,9 @@ function updateInvSlotsUI(){
     if (menuId) {
       const m = MENU[menuId];
       if (m.iconType==='image' && m.iconImg) {
-        iconHtml = `<img src="${m.iconImg.src}" alt="${m.label}">`;
+        iconHtml = `<img src="${escapeHtml(m.iconImg.src)}" alt="${escapeHtml(m.label)}">`;
       } else {
-        iconHtml = m.emoji || '';
+        iconHtml = escapeHtml(m.emoji || '');
       }
     }
     el.innerHTML = iconHtml;
@@ -1381,8 +1404,8 @@ function renderStationMenuUI(){
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.disabled = !owned;
-    const iconHtml = (m.iconType==='image' && m.iconImg) ? `<img src="${m.iconImg.src}" alt="">` : (m.emoji ? m.emoji+' ' : '');
-    btn.innerHTML = `${iconHtml}${m.label}${owned?'':' (재료없음)'}`;
+    const iconHtml = (m.iconType==='image' && m.iconImg) ? `<img src="${escapeHtml(m.iconImg.src)}" alt="">` : (m.emoji ? escapeHtml(m.emoji)+' ' : '');
+    btn.innerHTML = `${iconHtml}${escapeHtml(m.label)}${owned?'':' (재료없음)'}`;
     btn.addEventListener('click', () => selectMenuItem(m.id));
     stationMenuListEl.appendChild(btn);
   });
@@ -1725,13 +1748,13 @@ function renderShop(){
       const price = idlePrice(item.price);
       const iconInfo = INGREDIENT_ICON[item.key];
       const iconHtml = (iconInfo.iconType==='image' && iconInfo.iconImg)
-        ? `<img src="${iconInfo.iconImg.src}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px;">`
-        : (iconInfo.emoji ? iconInfo.emoji+' ' : '');
+        ? `<img src="${escapeHtml(iconInfo.iconImg.src)}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px;">`
+        : (iconInfo.emoji ? escapeHtml(iconInfo.emoji)+' ' : '');
       const div = document.createElement('div');
       div.className = 'shopItem' + (locked?' locked':'') + (unlocked?' owned':'');
       div.innerHTML = `
-        <div class="name">${iconHtml}${INGREDIENT_LABELS[item.key]} ${locked?'🔒 Lv.'+lv:(unlocked?'✅ 판매중':'🆕 미해금')}</div>
-        <div class="desc">보유: ${stock[item.key]}개 · ${item.qty}개 구매에 ${price}원${unlocked?'':' (처음 구매 시 메뉴 해금!)'}</div>
+        <div class="name">${iconHtml}${escapeHtml(INGREDIENT_LABELS[item.key])} ${locked?'🔒 Lv.'+lv:(unlocked?'✅ 판매중':'🆕 미해금')}</div>
+        <div class="desc">보유: ${escapeHtml(stock[item.key])}개 · ${item.qty}개 구매에 ${price}원${unlocked?'':' (처음 구매 시 메뉴 해금!)'}</div>
         <button ${locked||money<price?'disabled':''}>${price}원에 구매</button>
       `;
       if (!locked) {
@@ -1768,7 +1791,7 @@ function renderShop(){
       const div = document.createElement('div');
       div.className = 'shopItem' + (locked?' locked':'') + (s.owned?' owned':'');
       div.innerHTML = `
-        <div class="name">${s.label} ${s.owned?'✅ 보유중':(locked?'🔒 Lv.'+s.unlockLv:'')}</div>
+        <div class="name">${escapeHtml(s.label)} ${s.owned?'✅ 보유중':(locked?'🔒 Lv.'+s.unlockLv:'')}</div>
         <div class="desc">${s.owned?'이미 설치되어 있어요.':(locked?'레벨을 올리면 구매할 수 있어요.':'가격: '+price+'원')}</div>
         <button ${s.owned||locked||money<price?'disabled':''}>${s.owned?'보유중':price+'원에 구매'}</button>
       `;
@@ -1796,8 +1819,8 @@ function renderShop(){
       const div = document.createElement('div');
       div.className = 'shopItem' + (locked?' locked':'') + (info.hired?' owned':'');
       div.innerHTML = `
-        <div class="name">${s.label} ${info.hired?'✅ 고용중':(locked?'🔒 Lv.'+s.unlockLv:'')}</div>
-        <div class="desc">${s.desc}<br>${info.hired?wageLabel : ('고용비 '+hireCost+'원 + '+wageLabel)}</div>
+        <div class="name">${escapeHtml(s.label)} ${info.hired?'✅ 고용중':(locked?'🔒 Lv.'+s.unlockLv:'')}</div>
+        <div class="desc">${escapeHtml(s.desc)}<br>${info.hired?wageLabel : ('고용비 '+hireCost+'원 + '+wageLabel)}</div>
         <button ${info.hired||locked||money<hireCost?'disabled':''}>${info.hired?'고용중':hireCost+'원에 고용'}</button>
       `;
       if (!info.hired && !locked) {
@@ -2729,7 +2752,7 @@ function serializeCharCustom(custom){
 }
 
 function deserializeEntry(data){
-  if (!data) return Promise.resolve(null);
+  if (!data || !isSafeImageDataUrl(data.dataUrl)) return Promise.resolve(null);
   return new Promise((resolve)=>{
     const img = new Image();
     img.onload = () => resolve({ img, w: data.w, h: data.h });
@@ -2741,7 +2764,7 @@ function deserializeEntry(data){
 async function deserializeCharCustom(data){
   if (!data) return makeEmptyCharacterCustom();
   const result = makeEmptyCharacterCustom();
-  result.mode = data.mode || null;
+  result.mode = (data.mode === 'single' || data.mode === 'directional') ? data.mode : null;
   result.single = await deserializeEntry(data.single);
   result.directional.front = await deserializeEntry(data.directional && data.directional.front);
   result.directional.back = await deserializeEntry(data.directional && data.directional.back);
@@ -2772,13 +2795,14 @@ async function deserializeMenuCustom(data){
     for (const id of Object.keys(data.menu)) {
       if (!MENU[id]) continue;
       const d = data.menu[id];
-      MENU[id].label = d.label ?? MENU[id].label;
-      MENU[id].price = d.price ?? MENU[id].price;
-      MENU[id].unlockLv = d.unlockLv ?? MENU[id].unlockLv;
-      MENU[id].iconType = d.iconType || 'emoji';
-      MENU[id].emoji = d.emoji ?? MENU[id].emoji;
+      if (!d || typeof d !== 'object') continue;
+      MENU[id].label = safeText(d.label, 12, MENU[id].label);
+      MENU[id].price = Math.round(safeNum(d.price, MENU[id].price, 0, 1000000));
+      MENU[id].unlockLv = Math.round(safeNum(d.unlockLv, MENU[id].unlockLv, 1, 5));
+      MENU[id].iconType = d.iconType === 'image' ? 'image' : 'emoji';
+      MENU[id].emoji = typeof d.emoji === 'string' ? d.emoji.slice(0, 4) : MENU[id].emoji;
       if (d.iconImgDataUrl) {
-        MENU[id].iconImg = await new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src=d.iconImgDataUrl; });
+        MENU[id].iconImg = await dataUrlToImg(d.iconImgDataUrl);
       } else {
         MENU[id].iconImg = null;
       }
@@ -2788,12 +2812,13 @@ async function deserializeMenuCustom(data){
     for (const k of Object.keys(data.ingredient)) {
       if (!(k in INGREDIENT_LABELS)) continue;
       const d = data.ingredient[k];
-      if (d.label) INGREDIENT_LABELS[k] = d.label;
+      if (!d || typeof d !== 'object') continue;
+      INGREDIENT_LABELS[k] = safeText(d.label, 12, INGREDIENT_LABELS[k]);
       if (d.icon) {
-        INGREDIENT_ICON[k].iconType = d.icon.iconType || 'emoji';
-        INGREDIENT_ICON[k].emoji = d.icon.emoji || '';
+        INGREDIENT_ICON[k].iconType = d.icon.iconType === 'image' ? 'image' : 'emoji';
+        INGREDIENT_ICON[k].emoji = typeof d.icon.emoji === 'string' ? d.icon.emoji.slice(0, 4) : '';
         if (d.icon.iconImgDataUrl) {
-          INGREDIENT_ICON[k].iconImg = await new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src=d.icon.iconImgDataUrl; });
+          INGREDIENT_ICON[k].iconImg = await dataUrlToImg(d.icon.iconImgDataUrl);
         } else {
           INGREDIENT_ICON[k].iconImg = null;
         }
@@ -2811,7 +2836,8 @@ function imgToDataUrl(img){
   return c.toDataURL('image/png');
 }
 function dataUrlToImg(dataUrl){
-  if (!dataUrl) return Promise.resolve(null);
+  // 불러온 파일의 이미지 주소는 data:image 형식만 받는다
+  if (!isSafeImageDataUrl(dataUrl)) return Promise.resolve(null);
   return new Promise(res=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src=dataUrl; });
 }
 
@@ -2827,15 +2853,15 @@ async function deserializeDecorCustom(data){
   if (!data) return;
   if (data.floor) {
     floorCustom.img = await dataUrlToImg(data.floor.dataUrl);
-    floorCustom.tileCols = data.floor.tileCols || 1;
-    floorCustom.tileRows = data.floor.tileRows || 1;
-    floorCustom.tileIndex = data.floor.tileIndex || 0;
+    floorCustom.tileCols = Math.round(safeNum(data.floor.tileCols, 1, 1, 64));
+    floorCustom.tileRows = Math.round(safeNum(data.floor.tileRows, 1, 1, 64));
+    floorCustom.tileIndex = Math.round(safeNum(data.floor.tileIndex, 0, 0, 4095));
   }
   if (data.stations) {
     for (const k of Object.keys(data.stations)) {
       const entry = data.stations[k];
       if (decorCustom.stations[k]) decorCustom.stations[k].img = await dataUrlToImg(entry && entry.dataUrl !== undefined ? entry.dataUrl : entry);
-      if (entry && entry.label && STATIONS_DEF[k]) STATIONS_DEF[k].label = entry.label;
+      if (entry && STATIONS_DEF[k]) STATIONS_DEF[k].label = safeText(entry.label, 10, STATIONS_DEF[k].label);
     }
   }
   decorCustom.table.img = await dataUrlToImg(data.table);
@@ -2890,16 +2916,16 @@ async function applyCustomizationBundle(bundle){
     characterCustom.server = await deserializeCharCustom(bundle.charCustom.server);
   }
   if (bundle.customerCustom) {
-    customerCustom.mode = bundle.customerCustom.mode || 'none';
+    customerCustom.mode = ['none', 'unified', 'perType'].includes(bundle.customerCustom.mode) ? bundle.customerCustom.mode : 'none';
     customerCustom.unified = await deserializeCharCustom(bundle.customerCustom.unified);
     if (Array.isArray(bundle.customerCustom.perType)) {
       customerCustom.perType = await Promise.all(bundle.customerCustom.perType.map(deserializeCharCustom));
     }
     if (Array.isArray(bundle.customerCustom.typeNames)) {
-      bundle.customerCustom.typeNames.forEach((name, i) => { if (customerTypes[i] && name) customerTypes[i].name = name; });
+      bundle.customerCustom.typeNames.forEach((name, i) => { if (customerTypes[i]) customerTypes[i].name = safeText(name, 8, customerTypes[i].name); });
     }
     if (Array.isArray(bundle.customerCustom.typePrefs)) {
-      bundle.customerCustom.typePrefs.forEach((prefs, i) => { if (customerTypes[i] && Array.isArray(prefs)) customerTypes[i].preferredStations = prefs; });
+      bundle.customerCustom.typePrefs.forEach((prefs, i) => { if (customerTypes[i] && Array.isArray(prefs)) customerTypes[i].preferredStations = prefs.filter(k => typeof k === 'string' && k in STATIONS_DEF); });
     }
   }
   if (bundle.menuCustom) await deserializeMenuCustom(bundle.menuCustom);
@@ -2963,21 +2989,22 @@ async function loadGameFromSlot(slot){
 }
 
 async function applySaveData(data){
-  gameMode = data.gameMode ?? gameMode;
-  money = data.money ?? money;
-  reputation = data.reputation ?? reputation;
-  totalServed = data.totalServed ?? totalServed;
-  level = data.level ?? level;
-  day = data.day ?? day;
-  cumulativeEarnings = data.cumulativeEarnings ?? cumulativeEarnings;
-  freeMode = data.freeMode ?? freeMode;
-  endingShown = data.endingShown ?? endingShown;
-  currentExpansionStage = data.currentExpansionStage ?? currentExpansionStage;
-  if (data.stock) Object.keys(data.stock).forEach(k => { if (k in stock) stock[k] = data.stock[k]; });
-  if (data.everBought) Object.keys(data.everBought).forEach(k => { if (k in everBought) everBought[k] = data.everBought[k]; });
-  if (data.stationsOwned) Object.keys(data.stationsOwned).forEach(k => { if (STATIONS_DEF[k]) STATIONS_DEF[k].owned = data.stationsOwned[k]; });
+  // 저장 파일은 남이 만든 것일 수도 있어서, 숫자·참거짓은 형식을 확인하고 받는다
+  gameMode = (data.gameMode === 'idle' || data.gameMode === 'normal') ? data.gameMode : gameMode;
+  money = safeNum(data.money, money);
+  reputation = safeNum(data.reputation, reputation);
+  totalServed = Math.round(safeNum(data.totalServed, totalServed, 0));
+  level = Math.round(safeNum(data.level, level, 1));
+  day = Math.round(safeNum(data.day, day, 1));
+  cumulativeEarnings = safeNum(data.cumulativeEarnings, cumulativeEarnings);
+  if (typeof data.freeMode === 'boolean') freeMode = data.freeMode;
+  if (typeof data.endingShown === 'boolean') endingShown = data.endingShown;
+  currentExpansionStage = Math.round(safeNum(data.currentExpansionStage, currentExpansionStage, 0));
+  if (data.stock) Object.keys(data.stock).forEach(k => { if (k in stock) stock[k] = Math.round(safeNum(data.stock[k], stock[k], 0)); });
+  if (data.everBought) Object.keys(data.everBought).forEach(k => { if (k in everBought) everBought[k] = !!data.everBought[k]; });
+  if (data.stationsOwned) Object.keys(data.stationsOwned).forEach(k => { if (STATIONS_DEF[k]) STATIONS_DEF[k].owned = !!data.stationsOwned[k]; });
   if (data.staffHired) { staff.cook.hired = !!data.staffHired.cook; staff.server.hired = !!data.staffHired.server; }
-  tutorialDone = data.tutorialDone ?? tutorialDone;
+  if (typeof data.tutorialDone === 'boolean') tutorialDone = data.tutorialDone;
 
   // 인벤토리(2칸)는 저장 데이터에 포함되지 않는 런타임 전용 상태라, 슬롯을 불러올 때 명시적으로
   // 비워주지 않으면 이전에 열려 있던 다른 슬롯에서 들고 있던 아이템이 그대로 남아있는 문제가 있었다.
@@ -3191,7 +3218,7 @@ function renderCustomerSettingsBody(){
   const type = customerTypes[customerEditTypeIndex];
   const stationLabels = { espresso:'커피', smoothie:'스무디', dessert:'디저트', wok:'분식' };
   editArea.innerHTML = `
-    <label>이름 <input type="text" id="customerTypeNameInput" maxlength="8" value="${type.name}"></label>
+    <label>이름 <input type="text" id="customerTypeNameInput" maxlength="8" value="${escapeHtml(type.name)}"></label>
     <div class="prefStationChecks radioChipGroup">
       ${Object.keys(stationLabels).map(k=>`<label class="radioChip"><input type="checkbox" data-pref="${k}" ${type.preferredStations.includes(k)?'checked':''}> ${stationLabels[k]} 선호</label>`).join('')}
     </div>
@@ -3463,7 +3490,7 @@ async function openSlotOverlay(purpose, preloadedSlots){
     row.className = 'saveSlotRow';
     const modeLabel = rec ? (rec.gameMode==='idle' ? '♾️ 방치형' : '🎮 일반') : '';
     const info = rec
-      ? `<div class="slotTitle">슬롯 ${i} · ${modeLabel} · Lv.${rec.level}</div><div>${rec.gameMode==='idle' ? '' : 'Day '+rec.day+' · '}${new Date(rec.savedAt).toLocaleString()}</div>`
+      ? `<div class="slotTitle">슬롯 ${i} · ${modeLabel} · Lv.${escapeHtml(rec.level)}</div><div>${rec.gameMode==='idle' ? '' : 'Day '+escapeHtml(rec.day)+' · '}${escapeHtml(new Date(rec.savedAt).toLocaleString())}</div>`
       : `<div class="slotTitle">슬롯 ${i}</div><div>비어있음</div>`;
     row.innerHTML = `<div class="slotInfo">${info}</div>`;
     const btnWrap = document.createElement('div');
@@ -3549,10 +3576,10 @@ customImportFile.addEventListener('change', async (e)=>{
     const data = await readJsonFile(file);
     setCustomThemeColors(data.customTheme);
     if (data.theme) applyTheme(data.theme);
-    if (data.titleName) gameTitleName = data.titleName;
+    if (data.titleName) gameTitleName = safeText(data.titleName, GAME_TITLE_NAME_MAXLEN, gameTitleName);
     if (data.titleIcon) {
-      gameTitleIcon.mode = data.titleIcon.mode || 'emoji';
-      gameTitleIcon.emoji = data.titleIcon.emoji || '☕';
+      gameTitleIcon.mode = data.titleIcon.mode === 'image' ? 'image' : 'emoji';
+      gameTitleIcon.emoji = safeText(data.titleIcon.emoji, 4, '☕');
       gameTitleIcon.img = data.titleIcon.imgDataUrl ? await dataUrlToImg(data.titleIcon.imgDataUrl) : null;
     }
     applyTitleCustom();
@@ -3621,7 +3648,7 @@ function renderDecorPanel(){
       },
     }));
     const nameLabel = document.createElement('label');
-    nameLabel.innerHTML = `이름 <input type="text" maxlength="10" value="${def.label}" data-field="stationName">`;
+    nameLabel.innerHTML = `이름 <input type="text" maxlength="10" value="${escapeHtml(def.label)}" data-field="stationName">`;
     row.appendChild(nameLabel);
     row.querySelector('[data-field="stationName"]').addEventListener('change', (e)=>{
       const v = e.target.value.trim();
@@ -3671,8 +3698,8 @@ menuCustomStationTabsEl.querySelectorAll('button').forEach(btn=>{
 });
 
 function iconPreviewHtml(m){
-  if (m.iconType==='image' && m.iconImg) return `<img src="${m.iconImg.src}" alt="">`;
-  return m.emoji || '';
+  if (m.iconType==='image' && m.iconImg) return `<img src="${escapeHtml(m.iconImg.src)}" alt="">`;
+  return escapeHtml(m.emoji || '');
 }
 
 function renderMenuCustomPanel(){
@@ -3684,13 +3711,13 @@ function renderMenuCustomPanel(){
     const uid = 'icontype_'+m.id;
     row.innerHTML = `
       <div class="miIconPreview">${iconPreviewHtml(m)}</div>
-      <label>이름 <input type="text" maxlength="12" value="${m.label}" data-field="label" class="miNameInput"></label>
-      <label>가격 <input type="number" min="0" step="10" value="${m.price}" data-field="price"></label>
+      <label>이름 <input type="text" maxlength="12" value="${escapeHtml(m.label)}" data-field="label" class="miNameInput"></label>
+      <label>가격 <input type="number" min="0" step="10" value="${escapeHtml(m.price)}" data-field="price"></label>
       <label>해금레벨 <select data-field="unlockLv">
         ${[1,2,3,4,5].map(lv=>`<option value="${lv}" ${m.unlockLv===lv?'selected':''}>Lv.${lv}</option>`).join('')}
       </select></label>
       <label class="radioChip"><input type="radio" name="${uid}" value="emoji" ${m.iconType==='emoji'?'checked':''}> 텍스트/이모지</label>
-      <input type="text" maxlength="4" value="${m.iconType==='emoji'?m.emoji:''}" data-field="emojiText" placeholder="예: 🍮" ${m.iconType!=='emoji'?'disabled':''}>
+      <input type="text" maxlength="4" value="${m.iconType==='emoji'?escapeHtml(m.emoji):''}" data-field="emojiText" placeholder="예: 🍮" ${m.iconType!=='emoji'?'disabled':''}>
       <label class="radioChip"><input type="radio" name="${uid}" value="image" ${m.iconType==='image'?'checked':''}> 이미지 파일</label>
       <span data-field="iconImageSlot"></span>
     `;
@@ -3861,7 +3888,7 @@ async function renderSaveSlotListInline(){
     row.className = 'saveSlotRow';
     const modeLabel = rec ? (rec.gameMode==='idle' ? '♾️ 방치형' : '🎮 일반') : '';
     const info = rec
-      ? `<div class="slotTitle">슬롯 ${i} · ${modeLabel} · Lv.${rec.level}</div><div>${rec.gameMode==='idle' ? '' : 'Day '+rec.day+' · '}${new Date(rec.savedAt).toLocaleString()}</div>`
+      ? `<div class="slotTitle">슬롯 ${i} · ${modeLabel} · Lv.${escapeHtml(rec.level)}</div><div>${rec.gameMode==='idle' ? '' : 'Day '+escapeHtml(rec.day)+' · '}${escapeHtml(new Date(rec.savedAt).toLocaleString())}</div>`
       : `<div class="slotTitle">슬롯 ${i}</div><div>비어있음</div>`;
     row.innerHTML = `<div class="slotInfo">${info}</div>`;
 
